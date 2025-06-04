@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.30)
 
 # Define the project name
-project(AVSYNTH VERSION 0.1.0)
+project(Toady VERSION 0.1.0)
 
 # Set C++23 as the required standard for all targets
 set(CMAKE_CXX_STANDARD 23)
@@ -19,11 +19,11 @@ FetchContent_MakeAvailable(magic_enum)
 
 add_subdirectory(extern/JUCE)
 
-juce_add_plugin(AvSynth
+juce_add_plugin(Toady
         # VERSION ...                               # Set this if the plugin version is different to the project version
         # ICON_BIG ...                              # ICON_* arguments specify a path to an image file to use as an icon for the Standalone
         # ICON_SMALL ...
-        COMPANY_NAME "HSBI"                         # Specify the name of the plugin's author
+        COMPANY_NAME "Nintendon't"                         # Specify the name of the plugin's author
         IS_SYNTH TRUE                               # Is this a synth or an effect?
         NEEDS_MIDI_INPUT TRUE                       # Does the plugin need midi input?
         NEEDS_MIDI_OUTPUT FALSE                     # Does the plugin need midi output?
@@ -34,7 +34,7 @@ juce_add_plugin(AvSynth
         PLUGIN_CODE Avsy                            # A unique four-character plugin id with exactly one upper-case character
         # GarageBand 10.3 requires the first letter to be upper-case, and the remaining letters to be lower-case
         FORMATS VST3 Standalone                  # The formats to build. Other valid formats are: AAX Unity VST AU AUv3
-        PRODUCT_NAME "Audio Visual Synthesizer")    # The name of the final executable, which can differ from the target name
+        PRODUCT_NAME "Toadally Screwed")    # The name of the final executable, which can differ from the target name
 
 # `juce_generate_juce_header` will create a JuceHeader.h for a given target, which will be generated
 # into your build tree. This should be included with `#include <JuceHeader.h>`. The include path for
@@ -42,14 +42,14 @@ juce_add_plugin(AvSynth
 # include all your JUCE module headers; if you're happy to include module headers directly, you
 # probably don't need to call this.
 
-juce_generate_juce_header(AvSynth)
+juce_generate_juce_header(Toady)
 
 # `target_sources` adds source files to a target. We pass the target that needs the sources as the
 # first argument, then a visibility parameter for the sources which should normally be PRIVATE.
 # Finally, we supply a list of source files that will be built into the target. This is a standard
 # CMake command.
 
-target_sources(AvSynth
+target_sources(Toady
         PRIVATE
         src/PluginEditor.cpp
         src/PluginProcessor.cpp
@@ -63,7 +63,7 @@ target_sources(AvSynth
 # definitions will be visible both to your code, and also the JUCE module code, so for new
 # definitions, pick unique names that are unlikely to collide! This is a standard CMake command.
 
-target_compile_definitions(AvSynth
+target_compile_definitions(Toady
         PUBLIC
         # JUCE_WEB_BROWSER and JUCE_USE_CURL would be on by default, but you might not need them.
         JUCE_WEB_BROWSER=0  # If you remove this, add `NEEDS_WEB_BROWSER TRUE` to the `juce_add_plugin` call
@@ -87,7 +87,7 @@ target_compile_definitions(AvSynth
 # linked automatically. If we'd generated a binary data target above, we would need to link to it
 # here too. This is a standard CMake command.
 
-target_link_libraries(AvSynth
+target_link_libraries(Toady
         PRIVATE
         # AudioPluginData           # If we'd created a binary data target, we'd link to it here
         juce::juce_audio_utils
