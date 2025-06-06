@@ -139,25 +139,19 @@ bool AvSynthAudioProcessor::isBusesLayoutSupported(const BusesLayout &layouts) c
  * @param midiMessages MIDI messages to be processed
  */
 void AvSynthAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer, juce::MidiBuffer &midiMessages) {
-    // Ignore MIDI messages as they're not used in this processor
     juce::ignoreUnused(midiMessages);
-    // Prevent denormalized numbers in audio calculations for better performance
     juce::ScopedNoDenormals noDenormals;
     const auto totalNumOutputChannels = getTotalNumOutputChannels();
 
-    // Merge keyboardComponent MIDI events into midiMessages
     keyboardState.processNextMidiBuffer(midiMessages, 0, buffer.getNumSamples(), true);
 
-    // If there is a MIDI message, process it and set the frequency to the value in the message
     if (!midiMessages.isEmpty()) {
         for (const auto &message : midiMessages) {
             if (message.getMessage().isNoteOn()) {
-                float frequency =
-                    static_cast<float>(juce::MidiMessage::getMidiNoteInHertz(message.getMessage().getNoteNumber()));
-                // Set the frequency based on the MIDI note number
+                float frequency = static_cast<float>(
+                    juce::MidiMessage::getMidiNoteInHertz(message.getMessage().getNoteNumber()));
                 auto *freqParam = parameters.getParameter(magic_enum::enum_name<Parameters::Frequency>().data());
                 if (auto *floatParam = dynamic_cast<juce::AudioParameterFloat *>(freqParam)) {
-                    // The value needs to be normalized to the range of 0 to 1 for the parameter
                     float normValue = floatParam->convertTo0to1(frequency);
                     floatParam->setValueNotifyingHost(normValue);
                 }
@@ -166,31 +160,33 @@ void AvSynthAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer, juce:
         }
     }
 
-    // Get current parameter values
     const auto chainSettings = ChainSettings::Get(parameters);
 
-    // Check if the frequency has changed since the last process call
+    // Hole VowelMorph-Parameterwert (z.B. 0.0 bis 1.0)
+    auto *vowelParam = parameters.getRawParameterValue(magic_enum::enum_name<Parameters::VowelMorph>().data());
+    float vowelMorphValue = vowelParam ? vowelParam->load() : 0.0f;
+
     if (!juce::approximatelyEqual(previousChainSettings.frequency, chainSettings.frequency)) {
-        // Create a linear ramp to smoothly transition the frequency
         LinearRamp<float> frequencyRamp;
         frequencyRamp.reset(previousChainSettings.frequency, chainSettings.frequency, buffer.getNumSamples());
 
         for (auto sample = 0; sample < buffer.getNumSamples(); ++sample) {
-            auto currentSample = getOscSample(chainSettings.oscType, currentAngle);
+            // Generiere Sample mit Vowel Morphing
+            auto currentSample = getVowelMorphSample(chainSettings.oscType, currentAngle, vowelMorphValue);
+
             currentAngle += angleDelta;
             updateAngleDelta(frequencyRamp.getNext());
 
-            // Write the current sample to all output channels
             for (int channel = 0; channel < totalNumOutputChannels; ++channel) {
                 buffer.getWritePointer(channel)[sample] = currentSample;
             }
         }
     } else {
-        // Sample the sine wave at the current sample rate and write the samples to the buffers
         for (auto sample = 0; sample < buffer.getNumSamples(); ++sample) {
-            auto currentSample = getOscSample(chainSettings.oscType, currentAngle);
+            auto currentSample = getVowelMorphSample(chainSettings.oscType, currentAngle, vowelMorphValue);
+
             currentAngle += angleDelta;
-            // Write the current sample to all output channels
+
             for (int channel = 0; channel < totalNumOutputChannels; ++channel) {
                 buffer.getWritePointer(channel)[sample] = currentSample;
             }
@@ -200,15 +196,11 @@ void AvSynthAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer, juce:
     updateLowPassCoefficients(chainSettings.LowPassFreq);
     updateHighPassCoefficients(chainSettings.HighPassFreq);
 
-    // Apply the filters to the audio buffer
     juce::dsp::AudioBlock<float> block(buffer);
-
     auto leftBlock = block.getSingleChannelBlock(0);
     auto rightBlock = block.getSingleChannelBlock(1);
-
     juce::dsp::ProcessContextReplacing<float> leftContext(leftBlock);
     juce::dsp::ProcessContextReplacing<float> rightContext(rightBlock);
-
     leftChain.process(leftContext);
     rightChain.process(rightContext);
 
@@ -224,17 +216,26 @@ void AvSynthAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer, juce:
 
     previousChainSettings = chainSettings;
 
-    // Get pointer to the first channel's data (mono processing for simplicity)
     const float *channelData = buffer.getReadPointer(0);
-
-    // Copy input samples to circular buffer for visualization
     for (int sample = 0; sample < buffer.getNumSamples(); ++sample) {
-        // Write current sample to circular buffer
         circularBuffer.setSample(0, bufferWritePos, channelData[sample]);
-        // Increment write position and wrap around if necessary
         bufferWritePos = (bufferWritePos + 1) % circularBuffer.getNumSamples();
     }
 }
+
+
+float AvSynthAudioProcessor::getVowelMorphSample(OscType oscType, float angle, float vowelMorphValue) {
+    // Basis-Sample nach OscType
+    float baseSample = getOscSample(oscType, angle);
+
+    // Beispiel-Morph zu Sine (oder einer anderen Wellenform), als Vokal-Färbung
+    // Du kannst hier mehrere Wellenformen mischen oder komplexere Logik reinpacken
+    float vowelSample = getOscSample(OscType::Sine, angle); // z.B. Vowel-Referenz
+
+    // Morph zwischen baseSample und vowelSample mit vowelMorphValue (0..1)
+    return juce::jmap(vowelMorphValue, baseSample, vowelSample);
+}
+
 
 //==============================================================================
 bool AvSynthAudioProcessor::hasEditor() const {
@@ -338,6 +339,10 @@ juce::AudioProcessorValueTreeState::ParameterLayout AvSynthAudioProcessor::creat
         juce::StringArray{magic_enum::enum_name<OscType::Sine>().data(), magic_enum::enum_name<OscType::Saw>().data(),
                           magic_enum::enum_name<OscType::Square>().data(), magic_enum::enum_name<OscType::Triangle>().data()},
         0));
+
+    layout.add(makeParameter<juce::AudioParameterFloat, Parameters::VowelMorph>(
+    juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.0f));
+
 
     return layout;
 }

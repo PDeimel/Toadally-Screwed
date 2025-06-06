@@ -26,8 +26,10 @@ AvSynthAudioProcessorEditor::AvSynthAudioProcessorEditor(AvSynthAudioProcessor &
                             highCutFreqSlider),
 
       keyboardComponent(p.keyboardState, juce::MidiKeyboardComponent::horizontalKeyboard),
+    waveformComponent(p.circularBuffer, p.bufferWritePos),
+    vowelMorphSlider(juce::Slider::LinearHorizontal, juce::Slider::TextEntryBoxPosition::TextBoxLeft),
 
-      waveformComponent(p.circularBuffer, p.bufferWritePos) {
+      vowelMorphAttachment(p.parameters, magic_enum::enum_name<AvSynthAudioProcessor::Parameters::VowelMorph>().data(), vowelMorphSlider) {
     juce::ignoreUnused(processorRef);
     // Make sure that before the constructor has finished, you've set the
     // editor's size to whatever you need it to be.
@@ -47,7 +49,7 @@ AvSynthAudioProcessorEditor::AvSynthAudioProcessorEditor(AvSynthAudioProcessor &
     for (const auto component : GetComps()) {
         addAndMakeVisible(component);
     }
-    setSize(400, 300);
+    setSize(400, 600);
     setResizable(true, true);
 }
 
@@ -71,6 +73,7 @@ void AvSynthAudioProcessorEditor::resized() {
     auto highCutFreqArea = bounds.removeFromTop(40);
     auto keyboardArea = bounds.removeFromTop(80);
     auto waveformArea = bounds.removeFromTop(bounds.getHeight() - 40);
+    auto vowelMorphSliderArea = bounds.removeFromTop(120);
 
     gainSlider.setBounds(gainSliderArea);
     frequencySlider.setBounds(frequencySliderArea);
@@ -79,9 +82,10 @@ void AvSynthAudioProcessorEditor::resized() {
     highCutFreqSlider.setBounds(highCutFreqArea);
     keyboardComponent.setBounds(keyboardArea);
     waveformComponent.setBounds(waveformArea);
+    vowelMorphSlider.setBounds(vowelMorphSliderArea);
 }
 
 std::vector<juce::Component *> AvSynthAudioProcessorEditor::GetComps() {
     return {&waveformComponent, &gainSlider,        &frequencySlider,  &oscTypeComboBox,
-            &lowCutFreqSlider,  &highCutFreqSlider, &keyboardComponent};
+            &lowCutFreqSlider,  &highCutFreqSlider, &vowelMorphSlider, &keyboardComponent};
 }

@@ -33,6 +33,8 @@ class AvSynthAudioProcessorEditor final : public juce::AudioProcessorEditor {
     juce::AudioProcessorValueTreeState::SliderAttachment highCutFreqAttachment;
     juce::MidiKeyboardComponent keyboardComponent;
     WaveformComponent waveformComponent;
+    juce::Slider vowelMorphSlider;
+    juce::AudioProcessorValueTreeState::SliderAttachment vowelMorphAttachment;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AvSynthAudioProcessorEditor)
 };
