@@ -44,6 +44,16 @@ juce_add_plugin(Toady
 
 juce_generate_juce_header(Toady)
 
+# Binary data für Assets (Bilder, etc.)
+juce_add_binary_data(ToadyAssets
+        SOURCES
+        assets/images/sine_wave.png
+        assets/images/square_wave.png
+        assets/images/sawtooth_wave.png
+        assets/images/triangle_wave.png
+        NAMESPACE ToadyAssets
+)
+
 # `target_sources` adds source files to a target. We pass the target that needs the sources as the
 # first argument, then a visibility parameter for the sources which should normally be PRIVATE.
 # Finally, we supply a list of source files that will be built into the target. This is a standard
@@ -89,7 +99,7 @@ target_compile_definitions(Toady
 
 target_link_libraries(Toady
         PRIVATE
-        # AudioPluginData           # If we'd created a binary data target, we'd link to it here
+        ToadyAssets
         juce::juce_audio_utils
         juce::juce_dsp
         PUBLIC

@@ -81,6 +81,9 @@ class AvSynthAudioProcessor final : public juce::AudioProcessor {
     juce::AudioSampleBuffer circularBuffer;
     int bufferWritePos = 0;
 
+    bool noteIsActive = false;
+    float currentNoteFrequency = 0.0f;
+
   private:
     using Filter = juce::dsp::IIR::Filter<float>;
 

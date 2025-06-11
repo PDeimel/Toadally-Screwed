@@ -138,64 +138,65 @@ bool AvSynthAudioProcessor::isBusesLayoutSupported(const BusesLayout &layouts) c
  * @param buffer Audio buffer containing the input/output audio data
  * @param midiMessages MIDI messages to be processed
  */
-void AvSynthAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer, juce::MidiBuffer &midiMessages) {
-    juce::ignoreUnused(midiMessages);
+void AvSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages) {
     juce::ScopedNoDenormals noDenormals;
     const auto totalNumOutputChannels = getTotalNumOutputChannels();
+    const int numSamples = buffer.getNumSamples();
 
-    keyboardState.processNextMidiBuffer(midiMessages, 0, buffer.getNumSamples(), true);
+    // Standard-MIDI-Verarbeitung
+    keyboardState.processNextMidiBuffer(midiMessages, 0, numSamples, true);
 
-    if (!midiMessages.isEmpty()) {
-        for (const auto &message : midiMessages) {
-            if (message.getMessage().isNoteOn()) {
-                float frequency = static_cast<float>(
-                    juce::MidiMessage::getMidiNoteInHertz(message.getMessage().getNoteNumber()));
-                auto *freqParam = parameters.getParameter(magic_enum::enum_name<Parameters::Frequency>().data());
-                if (auto *floatParam = dynamic_cast<juce::AudioParameterFloat *>(freqParam)) {
-                    float normValue = floatParam->convertTo0to1(frequency);
-                    floatParam->setValueNotifyingHost(normValue);
-                }
-                break;
+    // MIDI-Note Handling
+    for (const auto metadata : midiMessages) {
+        const auto msg = metadata.getMessage();
+
+        if (msg.isNoteOn()) {
+            currentNoteFrequency = msg.getMidiNoteInHertz(msg.getNoteNumber());
+            noteIsActive = true;
+
+            // Frequenz-Parameter updaten (optional)
+            auto* freqParam = parameters.getParameter(magic_enum::enum_name<Parameters::Frequency>().data());
+            if (auto* floatParam = dynamic_cast<juce::AudioParameterFloat*>(freqParam)) {
+                float normValue = floatParam->convertTo0to1(currentNoteFrequency);
+                floatParam->setValueNotifyingHost(normValue);
             }
+
+            updateAngleDelta(currentNoteFrequency);
+        }
+        else if (msg.isNoteOff()) {
+            noteIsActive = false;
         }
     }
 
+    // Einstellungen laden
     const auto chainSettings = ChainSettings::Get(parameters);
 
-    // Hole VowelMorph-Parameterwert (z.B. 0.0 bis 1.0)
-    auto *vowelParam = parameters.getRawParameterValue(magic_enum::enum_name<Parameters::VowelMorph>().data());
-    float vowelMorphValue = vowelParam ? vowelParam->load() : 0.0f;
-
-    if (!juce::approximatelyEqual(previousChainSettings.frequency, chainSettings.frequency)) {
-        LinearRamp<float> frequencyRamp;
-        frequencyRamp.reset(previousChainSettings.frequency, chainSettings.frequency, buffer.getNumSamples());
-
-        for (auto sample = 0; sample < buffer.getNumSamples(); ++sample) {
-            // Generiere Sample mit Vowel Morphing
-            auto currentSample = getVowelMorphSample(chainSettings.oscType, currentAngle, vowelMorphValue);
-
-            currentAngle += angleDelta;
-            updateAngleDelta(frequencyRamp.getNext());
-
-            for (int channel = 0; channel < totalNumOutputChannels; ++channel) {
-                buffer.getWritePointer(channel)[sample] = currentSample;
-            }
-        }
-    } else {
-        for (auto sample = 0; sample < buffer.getNumSamples(); ++sample) {
-            auto currentSample = getVowelMorphSample(chainSettings.oscType, currentAngle, vowelMorphValue);
-
-            currentAngle += angleDelta;
-
-            for (int channel = 0; channel < totalNumOutputChannels; ++channel) {
-                buffer.getWritePointer(channel)[sample] = currentSample;
-            }
-        }
-    }
-
+    // Filter-Parameter aktualisieren
     updateLowPassCoefficients(chainSettings.LowPassFreq);
     updateHighPassCoefficients(chainSettings.HighPassFreq);
 
+    // Gain vorbereiten
+    bool gainUnchanged = juce::approximatelyEqual(chainSettings.gain, previousChainSettings.gain);
+
+    // Oszillator-Ausgabe
+    if (noteIsActive) {
+        auto* vowelParam = parameters.getRawParameterValue(magic_enum::enum_name<Parameters::VowelMorph>().data());
+        float vowelMorphValue = vowelParam ? vowelParam->load() : 0.0f;
+
+        for (int sample = 0; sample < numSamples; ++sample) {
+            float currentSample = getVowelMorphSample(chainSettings.oscType, currentAngle, vowelMorphValue);
+            currentAngle += angleDelta;
+
+            for (int channel = 0; channel < totalNumOutputChannels; ++channel) {
+                buffer.setSample(channel, sample, currentSample);
+            }
+        }
+    }
+    else {
+        buffer.clear(); // Kein Ton -> Stille ausgeben
+    }
+
+    // Filterverarbeitung
     juce::dsp::AudioBlock<float> block(buffer);
     auto leftBlock = block.getSingleChannelBlock(0);
     auto rightBlock = block.getSingleChannelBlock(1);
@@ -204,24 +205,27 @@ void AvSynthAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer, juce:
     leftChain.process(leftContext);
     rightChain.process(rightContext);
 
-    if (juce::approximatelyEqual(chainSettings.gain, previousChainSettings.gain)) {
-        for (int channel = 0; channel < totalNumOutputChannels; ++channel) {
-            buffer.applyGain(channel, 0, buffer.getNumSamples(), previousChainSettings.gain);
+    // Lautstärke anwenden
+    for (int channel = 0; channel < totalNumOutputChannels; ++channel) {
+        if (gainUnchanged) {
+            buffer.applyGain(channel, 0, numSamples, chainSettings.gain);
         }
-    } else {
-        for (int channel = 0; channel < totalNumOutputChannels; ++channel) {
-            buffer.applyGainRamp(channel, 0, buffer.getNumSamples(), previousChainSettings.gain, chainSettings.gain);
+        else {
+            buffer.applyGainRamp(channel, 0, numSamples, previousChainSettings.gain, chainSettings.gain);
         }
     }
 
-    previousChainSettings = chainSettings;
-
-    const float *channelData = buffer.getReadPointer(0);
-    for (int sample = 0; sample < buffer.getNumSamples(); ++sample) {
+    // Buffer für Waveform-Visualisierung updaten
+    const float* channelData = buffer.getReadPointer(0);
+    for (int sample = 0; sample < numSamples; ++sample) {
         circularBuffer.setSample(0, bufferWritePos, channelData[sample]);
         bufferWritePos = (bufferWritePos + 1) % circularBuffer.getNumSamples();
     }
+
+    // Parameter speichern
+    previousChainSettings = chainSettings;
 }
+
 
 
 float AvSynthAudioProcessor::getVowelMorphSample(OscType oscType, float angle, float vowelMorphValue) {
@@ -268,7 +272,13 @@ void AvSynthAudioProcessor::setStateInformation(const void *data, int sizeInByte
     }
 }
 void AvSynthAudioProcessor::updateAngleDelta(float frequency) {
-    auto cyclesPerSample = frequency / getSampleRate();
+    auto sampleRate = getSampleRate();
+    if (sampleRate <= 0.0) {
+        angleDelta = 0.0;
+        return;
+    }
+
+    auto cyclesPerSample = frequency / sampleRate;
     angleDelta = cyclesPerSample * juce::MathConstants<double>::twoPi;
 }
 
@@ -290,8 +300,11 @@ float AvSynthAudioProcessor::getOscSample(OscType type, double angle) {
     }
 }
 void AvSynthAudioProcessor::updateHighPassCoefficients(float frequency) {
+    auto sampleRate = getSampleRate();
+    if (sampleRate <= 0.0) return;
+
     auto highPassCoefficients =
-        juce::dsp::FilterDesign<float>::designIIRHighpassHighOrderButterworthMethod(frequency, getSampleRate(), 4);
+        juce::dsp::FilterDesign<float>::designIIRHighpassHighOrderButterworthMethod(frequency, sampleRate, 4);
 
     auto &leftHighPass = leftChain.get<0>();
     *leftHighPass.get<0>().coefficients = *highPassCoefficients[0];
