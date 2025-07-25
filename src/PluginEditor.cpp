@@ -32,7 +32,8 @@ AvSynthAudioProcessorEditor::AvSynthAudioProcessorEditor(AvSynthAudioProcessor &
       bitCrusherAttachment(p.parameters, magic_enum::enum_name<AvSynthAudioProcessor::Parameters::BitCrusherRate>().data(), bitCrusherSlider),
 
       keyboardComponent(p.keyboardState, juce::MidiKeyboardComponent::horizontalKeyboard),
-      waveformComponent(p.circularBuffer, p.bufferWritePos)
+      waveformComponent(p.circularBuffer, p.bufferWritePos),
+      adsrComponent()
 {
     juce::ignoreUnused(processorRef);
 
@@ -162,6 +163,7 @@ void AvSynthAudioProcessorEditor::resized()
     oscImage.setBounds(imageArea.reduced(10));
 
     waveformComponent.setBounds(rightColumn.reduced(10));
+    adsrComponent.setBounds(rightColumn.reduced(10));
 }
 
 void AvSynthAudioProcessorEditor::updateColorTheme(int oscTypeIndex)
@@ -274,6 +276,6 @@ std::vector<juce::Component *> AvSynthAudioProcessorEditor::GetComps()
     return {
         &gainSlider, &frequencySlider, &oscTypeComboBox, &lowCutFreqSlider,
         &highCutFreqSlider, &vowelMorphSlider, &reverbSlider, &bitCrusherSlider, &keyboardComponent,
-        &waveformComponent
+        &waveformComponent, &adsrComponent
     };
 }

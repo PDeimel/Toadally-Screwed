@@ -21,7 +21,10 @@ AvSynthAudioProcessor::ChainSettings::Get(const juce::AudioProcessorValueTreeSta
     settings.HighPassFreq = parameters.getRawParameterValue(magic_enum::enum_name<Parameters::HighPassFreq>().data())->load();
     settings.reverbAmount = parameters.getRawParameterValue(magic_enum::enum_name<Parameters::ReverbAmount>().data())->load();
     settings.bitCrusherRate = parameters.getRawParameterValue(magic_enum::enum_name<Parameters::BitCrusherRate>().data())->load();
-
+    settings.attack = parameters.getRawParameterValue(magic_enum::enum_name<Parameters::Attack>().data())->load();
+    settings.decay = parameters.getRawParameterValue(magic_enum::enum_name<Parameters::Decay>().data())->load();
+    settings.sustain = parameters.getRawParameterValue(magic_enum::enum_name<Parameters::Sustain>().data())->load();
+    settings.release = parameters.getRawParameterValue(magic_enum::enum_name<Parameters::Release>().data())->load();
 
     return settings;
 }
@@ -116,6 +119,11 @@ void AvSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
 
     reverb.prepare(reverbSpec);
     updateReverbParameters(previousChainSettings.reverbAmount);
+
+    adsr.setSampleRate(sampleRate);
+    updateADSRParameters(previousChainSettings.attack, previousChainSettings.decay,
+                        previousChainSettings.sustain, previousChainSettings.release);
+
 }
 
 void AvSynthAudioProcessor::updateReverbParameters(float reverbAmount) {
@@ -131,6 +139,16 @@ void AvSynthAudioProcessor::updateReverbParameters(float reverbAmount) {
 
     reverb.setParameters(reverbParams);
 }
+
+void AvSynthAudioProcessor::updateADSRParameters(float attack, float decay, float sustain, float release) {
+    adsrParams.attack = juce::jmap(attack, 0.0f, 1.0f, 0.01f, 3.0f);     // 0.01s bis 3s
+    adsrParams.decay = juce::jmap(decay, 0.0f, 1.0f, 0.01f, 3.0f);       // 0.01s bis 3s
+    adsrParams.sustain = sustain;                                         // 0.0 bis 1.0 (direkter Wert)
+    adsrParams.release = juce::jmap(release, 0.0f, 1.0f, 0.01f, 5.0f);   // 0.01s bis 5s
+
+    adsr.setParameters(adsrParams);
+}
+
 
 void AvSynthAudioProcessor::releaseResources() {
     // When playback stops, you can use this as an opportunity to free up any
@@ -181,6 +199,8 @@ void AvSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             currentNoteFrequency = msg.getMidiNoteInHertz(msg.getNoteNumber());
             noteIsActive = true;
 
+            adsr.noteOn();
+
             // Frequenz-Parameter updaten (optional)
             auto* freqParam = parameters.getParameter(magic_enum::enum_name<Parameters::Frequency>().data());
             if (auto* floatParam = dynamic_cast<juce::AudioParameterFloat*>(freqParam)) {
@@ -191,12 +211,19 @@ void AvSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             updateAngleDelta(currentNoteFrequency);
         }
         else if (msg.isNoteOff()) {
-            noteIsActive = false;
+            adsr.noteOff();
         }
     }
 
     // Einstellungen laden
     const auto chainSettings = ChainSettings::Get(parameters);
+
+    if (!juce::approximatelyEqual(chainSettings.attack, previousChainSettings.attack) ||
+        !juce::approximatelyEqual(chainSettings.decay, previousChainSettings.decay) ||
+        !juce::approximatelyEqual(chainSettings.sustain, previousChainSettings.sustain) ||
+        !juce::approximatelyEqual(chainSettings.release, previousChainSettings.release)) {
+        updateADSRParameters(chainSettings.attack, chainSettings.decay, chainSettings.sustain, chainSettings.release);
+        }
 
     // Filter-Parameter aktualisieren
     updateLowPassCoefficients(chainSettings.LowPassFreq);
@@ -206,13 +233,22 @@ void AvSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     bool gainUnchanged = juce::approximatelyEqual(chainSettings.gain, previousChainSettings.gain);
 
     // Oszillator-Ausgabe
-    if (noteIsActive) {
+    if (noteIsActive || adsr.isActive()) {
         auto* vowelParam = parameters.getRawParameterValue(magic_enum::enum_name<Parameters::VowelMorph>().data());
         float vowelMorphValue = vowelParam ? vowelParam->load() : 0.0f;
 
         for (int sample = 0; sample < numSamples; ++sample) {
             float currentSample = getVowelMorphSample(chainSettings.oscType, currentAngle, vowelMorphValue);
             currentAngle += angleDelta;
+
+            // ADSR-Hüllkurve anwenden
+            float adsrValue = adsr.getNextSample();
+            currentSample *= adsrValue;
+
+            // Wenn ADSR nicht mehr aktiv ist, Note beenden
+            if (!adsr.isActive()) {
+                noteIsActive = false;
+            }
 
             for (int channel = 0; channel < totalNumOutputChannels; ++channel) {
                 buffer.setSample(channel, sample, currentSample);
@@ -412,6 +448,17 @@ juce::AudioProcessorValueTreeState::ParameterLayout AvSynthAudioProcessor::creat
     layout.add(makeParameter<juce::AudioParameterFloat, Parameters::BitCrusherRate>(
         juce::NormalisableRange<float>(0.01f, 1.0f, 0.01f), 1.0f));
 
+    layout.add(makeParameter<juce::AudioParameterFloat, Parameters::Attack>(
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.1f));
+
+    layout.add(makeParameter<juce::AudioParameterFloat, Parameters::Decay>(
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.3f));
+
+    layout.add(makeParameter<juce::AudioParameterFloat, Parameters::Sustain>(
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.7f));
+
+    layout.add(makeParameter<juce::AudioParameterFloat, Parameters::Release>(
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.5f));
 
     return layout;
 }

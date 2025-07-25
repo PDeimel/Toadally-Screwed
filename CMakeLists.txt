@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.30)
 project(Toady VERSION 0.1.0)
 
 # Set C++23 as the required standard for all targets
-set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Use fetch content to download magic_enum
@@ -17,7 +17,12 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(magic_enum)
 
-add_subdirectory(extern/JUCE)
+FetchContent_Declare(
+        JUCE
+        GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
+        GIT_TAG 8.0.8
+)
+FetchContent_MakeAvailable(JUCE)
 
 juce_add_plugin(Toady
         # VERSION ...                               # Set this if the plugin version is different to the project version
@@ -61,6 +66,8 @@ juce_add_binary_data(ToadyAssets
 
 target_sources(Toady
         PRIVATE
+        src/ADSRComponent.cpp
+        src/ADSRComponent.hpp
         src/PluginEditor.cpp
         src/PluginProcessor.cpp
         src/WaveformComponent.cpp

@@ -9,7 +9,7 @@ class AvSynthAudioProcessor final : public juce::AudioProcessor {
     friend class AvSynthAudioProcessorEditor;
 
   public:
-    enum class Parameters { Gain, Frequency, OscType, LowPassFreq, HighPassFreq, VowelMorph, ReverbAmount, BitCrusherRate, NumParameters};
+    enum class Parameters { Gain, Frequency, OscType, LowPassFreq, HighPassFreq, VowelMorph, ReverbAmount, BitCrusherRate, Attack, Decay, Sustain, Release, NumParameters};
     enum class OscType { Sine, Square, Saw, Triangle, NumTypes };
 
     struct ChainSettings {
@@ -21,6 +21,10 @@ class AvSynthAudioProcessor final : public juce::AudioProcessor {
         float VowelMorph = 0.5f;
         float reverbAmount = 0.0f;
         float bitCrusherRate = 0.01f;
+        float attack = 0.1f;
+        float decay = 0.3f;
+        float sustain = 0.7f;
+        float release = 0.5f;
 
         static forcedinline ChainSettings Get(const juce::AudioProcessorValueTreeState &parameters);
     };
@@ -70,6 +74,7 @@ class AvSynthAudioProcessor final : public juce::AudioProcessor {
     void updateHighPassCoefficients(float frequency);
     void updateLowPassCoefficients(float frequency);
     void updateReverbParameters(float reverbAmount);
+    void updateADSRParameters(float attack, float decay, float sustain, float release);
 
   private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
@@ -98,6 +103,9 @@ class AvSynthAudioProcessor final : public juce::AudioProcessor {
     // Reverb-Komponenten
     juce::dsp::Reverb reverb;
     juce::dsp::ProcessSpec reverbSpec;
+
+    juce::ADSR adsr;
+    juce::ADSR::Parameters adsrParams;
 
     double currentAngle = 0.0, angleDelta = 0.0;
 

@@ -2,6 +2,7 @@
 
 #include "PluginProcessor.hpp"
 #include "WaveformComponent.hpp"
+#include "ADSRComponent.hpp"
 
 //==============================================================================
 class AvSynthAudioProcessorEditor final : public juce::AudioProcessorEditor,
@@ -61,6 +62,7 @@ private:
 
     juce::MidiKeyboardComponent keyboardComponent;
     WaveformComponent waveformComponent;
+    ADSRComponent adsrComponent;
 
     juce::ImageComponent oscImage;
 
