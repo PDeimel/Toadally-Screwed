@@ -19,6 +19,7 @@ AvSynthAudioProcessor::ChainSettings::Get(const juce::AudioProcessorValueTreeSta
         static_cast<int>(parameters.getRawParameterValue(magic_enum::enum_name<Parameters::OscType>().data())->load()));
     settings.LowPassFreq = parameters.getRawParameterValue(magic_enum::enum_name<Parameters::LowPassFreq>().data())->load();
     settings.HighPassFreq = parameters.getRawParameterValue(magic_enum::enum_name<Parameters::HighPassFreq>().data())->load();
+    settings.reverbAmount = parameters.getRawParameterValue(magic_enum::enum_name<Parameters::ReverbAmount>().data())->load();
 
     return settings;
 }
@@ -103,6 +104,30 @@ void AvSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
 
     updateLowPassCoefficients(previousChainSettings.LowPassFreq);
     updateHighPassCoefficients(previousChainSettings.HighPassFreq);
+
+    updateLowPassCoefficients(previousChainSettings.LowPassFreq);
+    updateHighPassCoefficients(previousChainSettings.HighPassFreq);
+
+    reverbSpec.sampleRate = sampleRate;
+    reverbSpec.maximumBlockSize = samplesPerBlock;
+    reverbSpec.numChannels = 2; // Stereo für Reverb
+
+    reverb.prepare(reverbSpec);
+    updateReverbParameters(previousChainSettings.reverbAmount);
+}
+
+void AvSynthAudioProcessor::updateReverbParameters(float reverbAmount) {
+    juce::dsp::Reverb::Parameters reverbParams;
+
+    // Reverb-Parameter basierend auf reverbAmount (0.0 bis 1.0) setzen
+    reverbParams.roomSize = juce::jmap(reverbAmount, 0.0f, 0.8f);        // Raumgröße
+    reverbParams.damping = juce::jmap(reverbAmount, 0.2f, 0.6f);         // Dämpfung
+    reverbParams.wetLevel = juce::jmap(reverbAmount, 0.0f, 0.4f);        // Wet-Signal
+    reverbParams.dryLevel = 1.0f - (reverbAmount * 0.3f);               // Dry-Signal bleibt dominant
+    reverbParams.width = 1.0f;                                          // Stereo-Breite
+    reverbParams.freezeMode = 0.0f;                                     // Kein Freeze
+
+    reverb.setParameters(reverbParams);
 }
 
 void AvSynthAudioProcessor::releaseResources() {
@@ -204,6 +229,17 @@ void AvSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     juce::dsp::ProcessContextReplacing<float> rightContext(rightBlock);
     leftChain.process(leftContext);
     rightChain.process(rightContext);
+
+    if (!juce::approximatelyEqual(chainSettings.reverbAmount, previousChainSettings.reverbAmount)) {
+        updateReverbParameters(chainSettings.reverbAmount);
+    }
+
+    // Reverb-Verarbeitung (nur wenn reverbAmount > 0)
+    if (chainSettings.reverbAmount > 0.0f) {
+        juce::dsp::AudioBlock<float> reverbBlock(buffer);
+        juce::dsp::ProcessContextReplacing<float> reverbContext(reverbBlock);
+        reverb.process(reverbContext);
+    }
 
     // Lautstärke anwenden
     for (int channel = 0; channel < totalNumOutputChannels; ++channel) {
@@ -356,6 +392,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout AvSynthAudioProcessor::creat
     layout.add(makeParameter<juce::AudioParameterFloat, Parameters::VowelMorph>(
     juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.0f));
 
+    layout.add(makeParameter<juce::AudioParameterFloat, Parameters::ReverbAmount>(
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.0f));
 
     return layout;
 }

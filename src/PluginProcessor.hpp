@@ -9,7 +9,7 @@ class AvSynthAudioProcessor final : public juce::AudioProcessor {
     friend class AvSynthAudioProcessorEditor;
 
   public:
-    enum class Parameters { Gain, Frequency, OscType, LowPassFreq, HighPassFreq, VowelMorph, NumParameters};
+    enum class Parameters { Gain, Frequency, OscType, LowPassFreq, HighPassFreq, VowelMorph, ReverbAmount, NumParameters};
     enum class OscType { Sine, Square, Saw, Triangle, NumTypes };
 
     struct ChainSettings {
@@ -19,6 +19,7 @@ class AvSynthAudioProcessor final : public juce::AudioProcessor {
         float LowPassFreq = 20000.0f;
         float HighPassFreq = 20.0f;
         float VowelMorph = 0.5f;
+        float reverbAmount = 0.0f;
 
         static forcedinline ChainSettings Get(const juce::AudioProcessorValueTreeState &parameters);
     };
@@ -67,6 +68,7 @@ class AvSynthAudioProcessor final : public juce::AudioProcessor {
 
     void updateHighPassCoefficients(float frequency);
     void updateLowPassCoefficients(float frequency);
+    void updateReverbParameters(float reverbAmount);
 
   private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
@@ -91,6 +93,10 @@ class AvSynthAudioProcessor final : public juce::AudioProcessor {
     using MonoChain = juce::dsp::ProcessorChain<CutFilter, CutFilter>;
 
     MonoChain leftChain, rightChain;
+
+    // Reverb-Komponenten
+    juce::dsp::Reverb reverb;
+    juce::dsp::ProcessSpec reverbSpec;
 
     double currentAngle = 0.0, angleDelta = 0.0;
 
