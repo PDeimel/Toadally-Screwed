@@ -22,11 +22,11 @@ AvSynthAudioProcessorEditor::AvSynthAudioProcessorEditor(AvSynthAudioProcessor &
       highCutFreqSlider(juce::Slider::LinearHorizontal, juce::Slider::TextEntryBoxPosition::TextBoxLeft),
       highCutFreqAttachment(p.parameters, magic_enum::enum_name<AvSynthAudioProcessor::Parameters::HighPassFreq>().data(), highCutFreqSlider),
 
-      keyboardComponent(p.keyboardState, juce::MidiKeyboardComponent::horizontalKeyboard),
-      waveformComponent(p.circularBuffer, p.bufferWritePos),
-
       vowelMorphSlider(juce::Slider::LinearHorizontal, juce::Slider::TextEntryBoxPosition::TextBoxLeft),
-      vowelMorphAttachment(p.parameters, magic_enum::enum_name<AvSynthAudioProcessor::Parameters::VowelMorph>().data(), vowelMorphSlider)
+      vowelMorphAttachment(p.parameters, magic_enum::enum_name<AvSynthAudioProcessor::Parameters::VowelMorph>().data(), vowelMorphSlider),
+
+      keyboardComponent(p.keyboardState, juce::MidiKeyboardComponent::horizontalKeyboard),
+      waveformComponent(p.circularBuffer, p.bufferWritePos)
 {
     juce::ignoreUnused(processorRef);
 
@@ -89,7 +89,6 @@ void AvSynthAudioProcessorEditor::resized()
     // Linke Spalte: Bedienelemente vertikal stapeln
     auto controlHeight = 40;
     gainSlider.setBounds(leftColumn.removeFromTop(controlHeight));
-    frequencySlider.setBounds(leftColumn.removeFromTop(controlHeight));
     oscTypeComboBox.setBounds(leftColumn.removeFromTop(controlHeight));
     lowCutFreqSlider.setBounds(leftColumn.removeFromTop(controlHeight));
     highCutFreqSlider.setBounds(leftColumn.removeFromTop(controlHeight));
