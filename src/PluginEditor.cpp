@@ -61,6 +61,9 @@ AvSynthAudioProcessorEditor::AvSynthAudioProcessorEditor(AvSynthAudioProcessor &
     bitCrusherLabel.setJustificationType(juce::Justification::centred);
     bitCrusherLabel.setColour(juce::Label::textColourId, juce::Colours::white);
 
+    gainLabel.setText("Gain", juce::dontSendNotification);
+    gainLabel.setJustificationType(juce::Justification::centred);
+    gainLabel.setColour(juce::Label::textColourId, juce::Colours::white);
 
     // Setup ComboBox with oscillator choices
     auto *oscTypeParam = dynamic_cast<juce::AudioParameterChoice *>(
@@ -92,6 +95,8 @@ AvSynthAudioProcessorEditor::AvSynthAudioProcessorEditor(AvSynthAudioProcessor &
 
     addAndMakeVisible(bitCrusherSlider);
     addAndMakeVisible(bitCrusherLabel);
+
+    addAndMakeVisible(gainLabel);
 
     setSize(650, 600);
     setResizable(true, true);
@@ -142,12 +147,13 @@ void AvSynthAudioProcessorEditor::resized()
 
     // Linke Spalte: Bedienelemente vertikal stapeln
     auto controlHeight = 40;
-    gainSlider.setBounds(leftColumn.removeFromTop(controlHeight));
+    gainSlider.setBounds(leftColumn.removeFromTop(controlHeight + 20));
+    gainLabel.setBounds(gainSlider.getX(), gainSlider.getY(), gainSlider.getWidth(), 20);
     oscTypeComboBox.setBounds(leftColumn.removeFromTop(controlHeight));
     lowCutFreqSlider.setBounds(leftColumn.removeFromTop(controlHeight));
     highCutFreqSlider.setBounds(leftColumn.removeFromTop(controlHeight));
     vowelMorphSlider.setBounds(leftColumn.removeFromTop(controlHeight));
-    bitCrusherSlider.setBounds(leftColumn.removeFromTop(controlHeight));
+    bitCrusherSlider.setBounds(leftColumn.removeFromTop(controlHeight + 20));
     bitCrusherLabel.setBounds(bitCrusherSlider.getX(), bitCrusherSlider.getY() - 20, bitCrusherSlider.getWidth(), 20);
     keyboardComponent.setBounds(leftColumn.removeFromTop(80));
 
