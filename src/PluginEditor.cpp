@@ -28,6 +28,9 @@ AvSynthAudioProcessorEditor::AvSynthAudioProcessorEditor(AvSynthAudioProcessor &
       reverbSlider(juce::Slider::LinearVertical, juce::Slider::TextEntryBoxPosition::TextBoxBelow),
       reverbAttachment(p.parameters, magic_enum::enum_name<AvSynthAudioProcessor::Parameters::ReverbAmount>().data(), reverbSlider),
 
+      bitCrusherSlider(juce::Slider::LinearHorizontal, juce::Slider::TextBoxBelow),
+      bitCrusherAttachment(p.parameters, magic_enum::enum_name<AvSynthAudioProcessor::Parameters::BitCrusherRate>().data(), bitCrusherSlider),
+
       keyboardComponent(p.keyboardState, juce::MidiKeyboardComponent::horizontalKeyboard),
       waveformComponent(p.circularBuffer, p.bufferWritePos)
 {
@@ -45,6 +48,19 @@ AvSynthAudioProcessorEditor::AvSynthAudioProcessorEditor(AvSynthAudioProcessor &
     reverbLabel.setText("Reverb", juce::dontSendNotification);
     reverbLabel.setJustificationType(juce::Justification::centred);
     reverbLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+
+    // BitCrusher-Slider konfigurieren
+    bitCrusherSlider.setRange(0.01, 1.0, 0.01);
+    bitCrusherSlider.setValue(0.01); // Standard = keine Veränderung
+    bitCrusherSlider.setSliderStyle(juce::Slider::LinearHorizontal);
+    bitCrusherSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 60, 20);
+    bitCrusherSlider.setLookAndFeel(&customLookAndFeel);
+
+    // BitCrusher-Label konfigurieren
+    bitCrusherLabel.setText("BitCrusher", juce::dontSendNotification);
+    bitCrusherLabel.setJustificationType(juce::Justification::centred);
+    bitCrusherLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+
 
     // Setup ComboBox with oscillator choices
     auto *oscTypeParam = dynamic_cast<juce::AudioParameterChoice *>(
@@ -73,6 +89,9 @@ AvSynthAudioProcessorEditor::AvSynthAudioProcessorEditor(AvSynthAudioProcessor &
 
     addAndMakeVisible(oscImage);
     addAndMakeVisible(reverbLabel);
+
+    addAndMakeVisible(bitCrusherSlider);
+    addAndMakeVisible(bitCrusherLabel);
 
     setSize(650, 600);
     setResizable(true, true);
@@ -128,6 +147,8 @@ void AvSynthAudioProcessorEditor::resized()
     lowCutFreqSlider.setBounds(leftColumn.removeFromTop(controlHeight));
     highCutFreqSlider.setBounds(leftColumn.removeFromTop(controlHeight));
     vowelMorphSlider.setBounds(leftColumn.removeFromTop(controlHeight));
+    bitCrusherSlider.setBounds(leftColumn.removeFromTop(controlHeight));
+    bitCrusherLabel.setBounds(bitCrusherSlider.getX(), bitCrusherSlider.getY() - 20, bitCrusherSlider.getWidth(), 20);
     keyboardComponent.setBounds(leftColumn.removeFromTop(80));
 
     // Rechte Spalte: oben das Bild, darunter die Waveform
@@ -246,7 +267,7 @@ std::vector<juce::Component *> AvSynthAudioProcessorEditor::GetComps()
 {
     return {
         &gainSlider, &frequencySlider, &oscTypeComboBox, &lowCutFreqSlider,
-        &highCutFreqSlider, &vowelMorphSlider, &reverbSlider, &keyboardComponent,
+        &highCutFreqSlider, &vowelMorphSlider, &reverbSlider, &bitCrusherSlider, &keyboardComponent,
         &waveformComponent
     };
 }

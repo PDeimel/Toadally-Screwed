@@ -9,7 +9,7 @@ class AvSynthAudioProcessor final : public juce::AudioProcessor {
     friend class AvSynthAudioProcessorEditor;
 
   public:
-    enum class Parameters { Gain, Frequency, OscType, LowPassFreq, HighPassFreq, VowelMorph, ReverbAmount, NumParameters};
+    enum class Parameters { Gain, Frequency, OscType, LowPassFreq, HighPassFreq, VowelMorph, ReverbAmount, BitCrusherRate, NumParameters};
     enum class OscType { Sine, Square, Saw, Triangle, NumTypes };
 
     struct ChainSettings {
@@ -20,6 +20,7 @@ class AvSynthAudioProcessor final : public juce::AudioProcessor {
         float HighPassFreq = 20.0f;
         float VowelMorph = 0.5f;
         float reverbAmount = 0.0f;
+        float bitCrusherRate = 0.01f;
 
         static forcedinline ChainSettings Get(const juce::AudioProcessorValueTreeState &parameters);
     };

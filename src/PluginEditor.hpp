@@ -54,6 +54,11 @@ private:
     juce::AudioProcessorValueTreeState::SliderAttachment reverbAttachment;
     juce::Label reverbLabel;
 
+    juce::Slider bitCrusherSlider;
+    juce::AudioProcessorValueTreeState::SliderAttachment bitCrusherAttachment;
+    juce::Label bitCrusherLabel;
+
+
     juce::MidiKeyboardComponent keyboardComponent;
     WaveformComponent waveformComponent;
 

@@ -20,6 +20,8 @@ AvSynthAudioProcessor::ChainSettings::Get(const juce::AudioProcessorValueTreeSta
     settings.LowPassFreq = parameters.getRawParameterValue(magic_enum::enum_name<Parameters::LowPassFreq>().data())->load();
     settings.HighPassFreq = parameters.getRawParameterValue(magic_enum::enum_name<Parameters::HighPassFreq>().data())->load();
     settings.reverbAmount = parameters.getRawParameterValue(magic_enum::enum_name<Parameters::ReverbAmount>().data())->load();
+    settings.bitCrusherRate = parameters.getRawParameterValue(magic_enum::enum_name<Parameters::BitCrusherRate>().data())->load();
+
 
     return settings;
 }
@@ -241,6 +243,18 @@ void AvSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         reverb.process(reverbContext);
     }
 
+    if (chainSettings.bitCrusherRate < 1.0f) {
+        const float crushFactor = chainSettings.bitCrusherRate;
+        const float inverse = 1.0f / crushFactor;
+
+        for (int channel = 0; channel < totalNumOutputChannels; ++channel) {
+            float* samples = buffer.getWritePointer(channel);
+            for (int i = 0; i < numSamples; ++i) {
+                samples[i] = std::round(samples[i] * inverse) * crushFactor;
+            }
+        }
+    }
+
     // Lautstärke anwenden
     for (int channel = 0; channel < totalNumOutputChannels; ++channel) {
         if (gainUnchanged) {
@@ -390,10 +404,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout AvSynthAudioProcessor::creat
         0));
 
     layout.add(makeParameter<juce::AudioParameterFloat, Parameters::VowelMorph>(
-    juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.0f));
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.0f));
 
     layout.add(makeParameter<juce::AudioParameterFloat, Parameters::ReverbAmount>(
         juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.0f));
+
+    layout.add(makeParameter<juce::AudioParameterFloat, Parameters::BitCrusherRate>(
+        juce::NormalisableRange<float>(0.01f, 1.0f, 0.01f), 1.0f));
+
 
     return layout;
 }
