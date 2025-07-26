@@ -7,6 +7,7 @@ ADSRComponent::ADSRComponent()
 
     // Plot-Buffer initialisieren
     plotBuffer.fill(0.0f);
+    timeBuffer.fill(0.0f);  // Neu: Zeit-Buffer initialisieren
 
     // Timer für Echtzeit-Updates starten (60 FPS)
     startTimer(16);
@@ -79,7 +80,7 @@ void ADSRComponent::paint(juce::Graphics& g)
     // Aktueller Envelope-Wert als großer Punkt
     if (envelopeActive.load())
     {
-        auto currentPos = getEnvelopePositionOnCurve(currentEnvelopeValue.load());
+        auto currentPos = getEnvelopePositionOnCurve(currentEnvelopeValue.load(), currentEnvelopeTime.load());
 
         // Pulsierender Effekt
         float pulseSize = 8.0f + 4.0f * std::sin(animationPhase);
@@ -254,16 +255,23 @@ void ADSRComponent::updateColors(juce::Colour primary, juce::Colour secondary)
     repaint();
 }
 
-void ADSRComponent::updateEnvelopeValue(float currentValue, bool isActive)
+// KORRIGIERTE VERSION: Jetzt mit Zeit-Parameter
+void ADSRComponent::updateEnvelopeValue(float currentValue, bool isActive, float timeInEnvelope)
 {
-    currentEnvelopeValue.store(currentValue);
+    // Werte validieren bevor sie gespeichert werden
+    float validValue = juce::jlimit(0.0f, 1.0f, currentValue);
+    float validTime = juce::jmax(0.0f, timeInEnvelope);
+
+    currentEnvelopeValue.store(validValue);
+    currentEnvelopeTime.store(validTime);
     envelopeActive.store(isActive);
 
-    // Wert in Plot-Buffer speichern
+    // Wert UND Zeit in Plot-Buffer speichern
     if (isActive)
     {
         int writeIndex = plotWriteIndex.load();
-        plotBuffer[writeIndex] = currentValue;
+        plotBuffer[writeIndex] = validValue;
+        timeBuffer[writeIndex] = validTime;  // Zeit auch speichern!
         plotWriteIndex.store((writeIndex + 1) % plotBufferSize);
     }
 }
@@ -303,19 +311,25 @@ void ADSRComponent::drawEnvelopePlot(juce::Graphics& g)
     {
         int index = (currentWrite - plotBufferSize + i + plotBufferSize) % plotBufferSize;
         float value = plotBuffer[index];
+        float time = timeBuffer[index];  // Zeit verwenden!
 
-        if (value > 0.0f)
+        // Zusätzliche Validierung
+        if (value > 0.0f && time >= 0.0f && std::isfinite(value) && std::isfinite(time))
         {
-            auto pos = getEnvelopePositionOnCurve(value);
+            auto pos = getEnvelopePositionOnCurve(value, time);  // Mit Zeit!
 
-            if (firstPoint)
+            // Validiere Position
+            if (std::isfinite(pos.x) && std::isfinite(pos.y))
             {
-                trailPath.startNewSubPath(pos);
-                firstPoint = false;
-            }
-            else
-            {
-                trailPath.lineTo(pos);
+                if (firstPoint)
+                {
+                    trailPath.startNewSubPath(pos);
+                    firstPoint = false;
+                }
+                else
+                {
+                    trailPath.lineTo(pos);
+                }
             }
         }
     }
@@ -328,51 +342,31 @@ void ADSRComponent::drawEnvelopePlot(juce::Graphics& g)
     }
 }
 
-juce::Point<float> ADSRComponent::getEnvelopePositionOnCurve(float value) const
+// KORRIGIERTE VERSION: Jetzt mit korrekter X-Position basierend auf Zeit
+juce::Point<float> ADSRComponent::getEnvelopePositionOnCurve(float value, float timeInEnvelope) const
 {
     auto bounds = getLocalBounds().toFloat().reduced(10);
 
-    float x, y;
+    // Berechne totale ADSR-Zeit
+    float totalAttackTime = juce::jmax(0.01f, attackValue);
+    float totalDecayTime = juce::jmax(0.01f, decayValue);
+    float totalSustainTime = 0.5f; // Sustain hat keine feste Zeit, aber für Plotting nehmen wir 0.5
+    float totalReleaseTime = juce::jmax(0.01f, releaseValue);
 
-    int state = adsrState.load();
-    switch (state)
-    {
-        case 1: // Attack
-        {
-            auto attackPoint = getAttackPoint();
-            x = juce::jmap(value, 0.0f, 1.0f, bounds.getX(), attackPoint.x);
-            y = juce::jmap(value, 0.0f, 1.0f, bounds.getBottom(), bounds.getY());
-            break;
-        }
-        case 2: // Decay
-        {
-            auto attackPoint = getAttackPoint();
-            auto decayPoint = getDecayPoint();
-            x = juce::jmap(value, 1.0f, sustainValue, attackPoint.x, decayPoint.x);
-            y = juce::jmap(value, 1.0f, sustainValue, bounds.getY(), decayPoint.y);
-            break;
-        }
-        case 3: // Sustain
-        {
-            auto decayPoint = getDecayPoint();
-            auto sustainPoint = getSustainPoint();
-            x = juce::jmap(0.5f, 0.0f, 1.0f, decayPoint.x, sustainPoint.x);
-            y = bounds.getY() + (bounds.getHeight() * (1.0f - value));
-            break;
-        }
-        case 4: // Release
-        {
-            auto sustainPoint = getSustainPoint();
-            auto releasePoint = getReleasePoint();
-            x = juce::jmap(1.0f - value, 0.0f, sustainValue, sustainPoint.x, releasePoint.x);
-            y = juce::jmap(value, sustainValue, 0.0f, sustainPoint.y, bounds.getBottom());
-            break;
-        }
-        default:
-            x = bounds.getX();
-            y = bounds.getBottom();
-            break;
-    }
+    float totalTime = totalAttackTime + totalDecayTime + totalSustainTime + totalReleaseTime;
+
+    // Sicherheitscheck gegen Division durch Null
+    if (totalTime <= 0.0f)
+        totalTime = 1.0f;
+
+    // Normalisierte Zeit (0.0 bis 1.0) über die gesamte ADSR-Kurve
+    float normalizedTime = juce::jlimit(0.0f, 1.0f, timeInEnvelope / totalTime);
+
+    // X-Position basierend auf der Zeit
+    float x = bounds.getX() + (bounds.getWidth() * normalizedTime);
+
+    // Y-Position basierend auf dem Envelope-Wert
+    float y = bounds.getY() + (bounds.getHeight() * (1.0f - juce::jlimit(0.0f, 1.0f, value)));
 
     return {x, y};
 }
