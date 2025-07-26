@@ -2,23 +2,20 @@
 
 #include "JuceHeader.h"
 #include "juce_dsp/juce_dsp.h"
-#include "juce_graphics/fonts/harfbuzz/OT/Layout/GSUB/AlternateSet.hh"
 
 //==============================================================================
 class AvSynthAudioProcessor final : public juce::AudioProcessor {
     friend class AvSynthAudioProcessorEditor;
 
   public:
-    enum class Parameters { Gain, Frequency, OscType, LowPassFreq, HighPassFreq, VowelMorph, ReverbAmount, BitCrusherRate, Attack, Decay, Sustain, Release, NumParameters};
+    enum class Parameters { Gain, Frequency, OscType, VowelMorph, ReverbAmount, BitCrusherRate, Attack, Decay, Sustain, Release, NumParameters};
     enum class OscType { Sine, Square, Saw, Triangle, NumTypes };
 
     struct ChainSettings {
         float gain = 0.25f;
         float frequency = 440.0f;
         OscType oscType = OscType::Sine;
-        float LowPassFreq = 20000.0f;
-        float HighPassFreq = 20.0f;
-        float VowelMorph = 0.5f;
+        float VowelMorph = 0.0f; // 0.0 = "A", 1.0 = "U"
         float reverbAmount = 0.0f;
         float bitCrusherRate = 0.01f;
         float attack = 0.1f;
@@ -71,8 +68,6 @@ class AvSynthAudioProcessor final : public juce::AudioProcessor {
     static float getOscSample(OscType type, double angle);
     static float getVowelMorphSample(OscType oscType, float angle, float vowelMorphValue);
 
-    void updateHighPassCoefficients(float frequency);
-    void updateLowPassCoefficients(float frequency);
     void updateReverbParameters(float reverbAmount);
     void updateADSRParameters(float attack, float decay, float sustain, float release);
 
@@ -97,13 +92,6 @@ class AvSynthAudioProcessor final : public juce::AudioProcessor {
     float currentNoteFrequency = 0.0f;
 
   private:
-    using Filter = juce::dsp::IIR::Filter<float>;
-
-    using CutFilter = juce::dsp::ProcessorChain<Filter, Filter>;
-    using MonoChain = juce::dsp::ProcessorChain<CutFilter, CutFilter>;
-
-    MonoChain leftChain, rightChain;
-
     // Reverb-Komponenten
     juce::dsp::Reverb reverb;
     juce::dsp::ProcessSpec reverbSpec;

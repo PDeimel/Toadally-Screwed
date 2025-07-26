@@ -15,12 +15,6 @@ AvSynthAudioProcessorEditor::AvSynthAudioProcessorEditor(AvSynthAudioProcessor &
       oscTypeComboBox(),
       oscTypeAttachment(p.parameters, magic_enum::enum_name<AvSynthAudioProcessor::Parameters::OscType>().data(), oscTypeComboBox),
 
-      lowCutFreqSlider(juce::Slider::LinearHorizontal, juce::Slider::TextEntryBoxPosition::TextBoxLeft),
-      lowCutFreqAttachment(p.parameters, magic_enum::enum_name<AvSynthAudioProcessor::Parameters::LowPassFreq>().data(), lowCutFreqSlider),
-
-      highCutFreqSlider(juce::Slider::LinearHorizontal, juce::Slider::TextEntryBoxPosition::TextBoxLeft),
-      highCutFreqAttachment(p.parameters, magic_enum::enum_name<AvSynthAudioProcessor::Parameters::HighPassFreq>().data(), highCutFreqSlider),
-
       vowelMorphSlider(juce::Slider::LinearHorizontal, juce::Slider::TextEntryBoxPosition::TextBoxLeft),
       vowelMorphAttachment(p.parameters, magic_enum::enum_name<AvSynthAudioProcessor::Parameters::VowelMorph>().data(), vowelMorphSlider),
 
@@ -61,9 +55,15 @@ AvSynthAudioProcessorEditor::AvSynthAudioProcessorEditor(AvSynthAudioProcessor &
     bitCrusherLabel.setJustificationType(juce::Justification::centred);
     bitCrusherLabel.setColour(juce::Label::textColourId, juce::Colours::white);
 
+    // Gain-Label konfigurieren
     gainLabel.setText("Gain", juce::dontSendNotification);
     gainLabel.setJustificationType(juce::Justification::centred);
     gainLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+
+    // Vowel-Morph-Label konfigurieren
+    vowelMorphLabel.setText("Vowel (A-E-I-O-U)", juce::dontSendNotification);
+    vowelMorphLabel.setJustificationType(juce::Justification::centred);
+    vowelMorphLabel.setColour(juce::Label::textColourId, juce::Colours::white);
 
     attackSlider.setRange(0.0, 1.0, 0.01);
     decaySlider.setRange(0.0, 1.0, 0.01);
@@ -107,7 +107,6 @@ AvSynthAudioProcessorEditor::AvSynthAudioProcessorEditor(AvSynthAudioProcessor &
     adsrComponent.setRelease(p.parameters.getRawParameterValue(
         magic_enum::enum_name<AvSynthAudioProcessor::Parameters::Release>().data())->load());
 
-
     // Setup ComboBox with oscillator choices
     auto *oscTypeParam = dynamic_cast<juce::AudioParameterChoice *>(
         p.parameters.getParameter(magic_enum::enum_name<AvSynthAudioProcessor::Parameters::OscType>().data()));
@@ -137,11 +136,10 @@ AvSynthAudioProcessorEditor::AvSynthAudioProcessorEditor(AvSynthAudioProcessor &
 
     addAndMakeVisible(oscImage);
     addAndMakeVisible(reverbLabel);
-
     addAndMakeVisible(bitCrusherSlider);
     addAndMakeVisible(bitCrusherLabel);
-
     addAndMakeVisible(gainLabel);
+    addAndMakeVisible(vowelMorphLabel);
 
     setSize(650, 600);
     setResizable(true, true);
@@ -203,10 +201,14 @@ void AvSynthAudioProcessorEditor::resized()
     auto controlHeight = 40;
     gainSlider.setBounds(leftColumn.removeFromTop(controlHeight + 20));
     gainLabel.setBounds(gainSlider.getX(), gainSlider.getY(), gainSlider.getWidth(), 20);
-    oscTypeComboBox.setBounds(leftColumn.removeFromTop(controlHeight));
-    lowCutFreqSlider.setBounds(leftColumn.removeFromTop(controlHeight));
-    highCutFreqSlider.setBounds(leftColumn.removeFromTop(controlHeight));
-    vowelMorphSlider.setBounds(leftColumn.removeFromTop(controlHeight));
+
+    oscTypeComboBox.setBounds(leftColumn.removeFromTop(controlHeight + 10)); // Mehr Abstand für ComboBox
+
+    // Vowel-Morph weiter unten platzieren
+    leftColumn.removeFromTop(20); // Zusätzlicher Abstand
+    vowelMorphSlider.setBounds(leftColumn.removeFromTop(controlHeight + 20));
+    vowelMorphLabel.setBounds(vowelMorphSlider.getX(), vowelMorphSlider.getY() - 20, vowelMorphSlider.getWidth(), 20);
+
     bitCrusherSlider.setBounds(leftColumn.removeFromTop(controlHeight + 20));
     bitCrusherLabel.setBounds(bitCrusherSlider.getX(), bitCrusherSlider.getY() - 20, bitCrusherSlider.getWidth(), 20);
 
@@ -252,8 +254,9 @@ void AvSynthAudioProcessorEditor::updateColorTheme(int oscTypeIndex)
     // LookAndFeel mit neuen Farben aktualisieren
     customLookAndFeel.updateColors(primaryColor, secondaryColor);
 
-    // Reverb-Label-Farbe aktualisieren
+    // Label-Farben aktualisieren
     reverbLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+    vowelMorphLabel.setColour(juce::Label::textColourId, juce::Colours::white);
 
     // Komponenten zum Neuzeichnen zwingen
     repaint();
@@ -360,8 +363,8 @@ juce::Colour AvSynthAudioProcessorEditor::getCurrentSecondaryColor() const
 std::vector<juce::Component *> AvSynthAudioProcessorEditor::GetComps()
 {
     return {
-        &gainSlider, &frequencySlider, &oscTypeComboBox, &lowCutFreqSlider,
-        &highCutFreqSlider, &vowelMorphSlider, &reverbSlider, &bitCrusherSlider, &keyboardComponent,
+        &gainSlider, &frequencySlider, &oscTypeComboBox, &vowelMorphSlider,
+        &reverbSlider, &bitCrusherSlider, &keyboardComponent,
         &waveformComponent, &adsrComponent, &attackSlider, &decaySlider, &sustainSlider, &releaseSlider
     };
 }

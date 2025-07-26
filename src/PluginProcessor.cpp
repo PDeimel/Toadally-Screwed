@@ -17,8 +17,7 @@ AvSynthAudioProcessor::ChainSettings::Get(const juce::AudioProcessorValueTreeSta
     settings.frequency = parameters.getRawParameterValue(magic_enum::enum_name<Parameters::Frequency>().data())->load();
     settings.oscType = static_cast<OscType>(
         static_cast<int>(parameters.getRawParameterValue(magic_enum::enum_name<Parameters::OscType>().data())->load()));
-    settings.LowPassFreq = parameters.getRawParameterValue(magic_enum::enum_name<Parameters::LowPassFreq>().data())->load();
-    settings.HighPassFreq = parameters.getRawParameterValue(magic_enum::enum_name<Parameters::HighPassFreq>().data())->load();
+    settings.VowelMorph = parameters.getRawParameterValue(magic_enum::enum_name<Parameters::VowelMorph>().data())->load();
     settings.reverbAmount = parameters.getRawParameterValue(magic_enum::enum_name<Parameters::ReverbAmount>().data())->load();
     settings.bitCrusherRate = parameters.getRawParameterValue(magic_enum::enum_name<Parameters::BitCrusherRate>().data())->load();
     settings.attack = parameters.getRawParameterValue(magic_enum::enum_name<Parameters::Attack>().data())->load();
@@ -98,20 +97,6 @@ void AvSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     circularBuffer.setSize(1, samplesPerBlock);
 
     updateAngleDelta(previousChainSettings.frequency);
-
-    juce::dsp::ProcessSpec spec{};
-    spec.sampleRate = sampleRate;
-    spec.maximumBlockSize = samplesPerBlock;
-    spec.numChannels = 1;
-
-    leftChain.prepare(spec);
-    rightChain.prepare(spec);
-
-    updateLowPassCoefficients(previousChainSettings.LowPassFreq);
-    updateHighPassCoefficients(previousChainSettings.HighPassFreq);
-
-    updateLowPassCoefficients(previousChainSettings.LowPassFreq);
-    updateHighPassCoefficients(previousChainSettings.HighPassFreq);
 
     reverbSpec.sampleRate = sampleRate;
     reverbSpec.maximumBlockSize = samplesPerBlock;
@@ -225,17 +210,12 @@ void AvSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         updateADSRParameters(chainSettings.attack, chainSettings.decay, chainSettings.sustain, chainSettings.release);
         }
 
-    // Filter-Parameter aktualisieren
-    updateLowPassCoefficients(chainSettings.LowPassFreq);
-    updateHighPassCoefficients(chainSettings.HighPassFreq);
-
     // Gain vorbereiten
     bool gainUnchanged = juce::approximatelyEqual(chainSettings.gain, previousChainSettings.gain);
 
     // Oszillator-Ausgabe
     if (noteIsActive || adsr.isActive()) {
-        auto* vowelParam = parameters.getRawParameterValue(magic_enum::enum_name<Parameters::VowelMorph>().data());
-        float vowelMorphValue = vowelParam ? vowelParam->load() : 0.0f;
+        float vowelMorphValue = chainSettings.VowelMorph;
 
         for (int sample = 0; sample < numSamples; ++sample) {
             float currentSample = getVowelMorphSample(chainSettings.oscType, currentAngle, vowelMorphValue);
@@ -291,15 +271,6 @@ void AvSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         currentADSRState.store(0);
     }
 
-    // Filterverarbeitung
-    juce::dsp::AudioBlock<float> block(buffer);
-    auto leftBlock = block.getSingleChannelBlock(0);
-    auto rightBlock = block.getSingleChannelBlock(1);
-    juce::dsp::ProcessContextReplacing<float> leftContext(leftBlock);
-    juce::dsp::ProcessContextReplacing<float> rightContext(rightBlock);
-    leftChain.process(leftContext);
-    rightChain.process(rightContext);
-
     if (!juce::approximatelyEqual(chainSettings.reverbAmount, previousChainSettings.reverbAmount)) {
         updateReverbParameters(chainSettings.reverbAmount);
     }
@@ -344,20 +315,88 @@ void AvSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     previousChainSettings = chainSettings;
 }
 
-
-
 float AvSynthAudioProcessor::getVowelMorphSample(OscType oscType, float angle, float vowelMorphValue) {
-    // Basis-Sample nach OscType
+    // Basis-Sample nach OscType generieren
     float baseSample = getOscSample(oscType, angle);
 
-    // Beispiel-Morph zu Sine (oder einer anderen Wellenform), als Vokal-Färbung
-    // Du kannst hier mehrere Wellenformen mischen oder komplexere Logik reinpacken
-    float vowelSample = getOscSample(OscType::Sine, angle); // z.B. Vowel-Referenz
+    // Vokal-Formanten-Frequenzen (vereinfacht)
+    // Diese Werte sind approximiert für charakteristische Formanten
+    struct VowelFormants {
+        float f1, f2, f3; // Erste drei Formanten
+        float a1, a2, a3;  // Amplituden für die Formanten
+    };
 
-    // Morph zwischen baseSample und vowelSample mit vowelMorphValue (0..1)
-    return juce::jmap(vowelMorphValue, baseSample, vowelSample);
+    // Vokal-Definitionen (Formanten in Hz, vereinfacht für Synthesizer-Nutzung)
+    VowelFormants vowelA = {800.0f, 1200.0f, 2500.0f, 1.0f, 0.7f, 0.3f};  // "A"
+    VowelFormants vowelE = {500.0f, 1800.0f, 2500.0f, 1.0f, 0.8f, 0.2f};  // "E"
+    VowelFormants vowelI = {300.0f, 2300.0f, 3000.0f, 1.0f, 0.9f, 0.4f};  // "I"
+    VowelFormants vowelO = {500.0f, 900.0f, 2200.0f, 1.0f, 0.6f, 0.2f};   // "O"
+    VowelFormants vowelU = {300.0f, 700.0f, 2100.0f, 1.0f, 0.5f, 0.1f};   // "U"
+
+    // Interpolation zwischen Vokalen basierend auf vowelMorphValue (0.0 bis 1.0)
+    VowelFormants currentVowel;
+
+    if (vowelMorphValue <= 0.25f) {
+        // A zu E
+        float t = vowelMorphValue * 4.0f;
+        currentVowel.f1 = juce::jmap(t, vowelA.f1, vowelE.f1);
+        currentVowel.f2 = juce::jmap(t, vowelA.f2, vowelE.f2);
+        currentVowel.f3 = juce::jmap(t, vowelA.f3, vowelE.f3);
+        currentVowel.a1 = juce::jmap(t, vowelA.a1, vowelE.a1);
+        currentVowel.a2 = juce::jmap(t, vowelA.a2, vowelE.a2);
+        currentVowel.a3 = juce::jmap(t, vowelA.a3, vowelE.a3);
+    }
+    else if (vowelMorphValue <= 0.5f) {
+        // E zu I
+        float t = (vowelMorphValue - 0.25f) * 4.0f;
+        currentVowel.f1 = juce::jmap(t, vowelE.f1, vowelI.f1);
+        currentVowel.f2 = juce::jmap(t, vowelE.f2, vowelI.f2);
+        currentVowel.f3 = juce::jmap(t, vowelE.f3, vowelI.f3);
+        currentVowel.a1 = juce::jmap(t, vowelE.a1, vowelI.a1);
+        currentVowel.a2 = juce::jmap(t, vowelE.a2, vowelI.a2);
+        currentVowel.a3 = juce::jmap(t, vowelE.a3, vowelI.a3);
+    }
+    else if (vowelMorphValue <= 0.75f) {
+        // I zu O
+        float t = (vowelMorphValue - 0.5f) * 4.0f;
+        currentVowel.f1 = juce::jmap(t, vowelI.f1, vowelO.f1);
+        currentVowel.f2 = juce::jmap(t, vowelI.f2, vowelO.f2);
+        currentVowel.f3 = juce::jmap(t, vowelI.f3, vowelO.f3);
+        currentVowel.a1 = juce::jmap(t, vowelI.a1, vowelO.a1);
+        currentVowel.a2 = juce::jmap(t, vowelI.a2, vowelO.a2);
+        currentVowel.a3 = juce::jmap(t, vowelI.a3, vowelO.a3);
+    }
+    else {
+        // O zu U
+        float t = (vowelMorphValue - 0.75f) * 4.0f;
+        currentVowel.f1 = juce::jmap(t, vowelO.f1, vowelU.f1);
+        currentVowel.f2 = juce::jmap(t, vowelO.f2, vowelU.f2);
+        currentVowel.f3 = juce::jmap(t, vowelO.f3, vowelU.f3);
+        currentVowel.a1 = juce::jmap(t, vowelO.a1, vowelU.a1);
+        currentVowel.a2 = juce::jmap(t, vowelO.a2, vowelU.a2);
+        currentVowel.a3 = juce::jmap(t, vowelO.a3, vowelU.a3);
+    }
+
+    // Formant-Filter-Simulation durch Überlagerung harmonischer Komponenten
+    // Vereinfachter Ansatz: Moduliere das Signal mit den Formanten
+    float formantSample = 0.0f;
+
+    // Erste Formante (stärkste)
+    float formant1 = std::sin(angle * currentVowel.f1 / 440.0f) * currentVowel.a1;
+    formantSample += formant1 * 0.5f;
+
+    // Zweite Formante
+    float formant2 = std::sin(angle * currentVowel.f2 / 440.0f) * currentVowel.a2;
+    formantSample += formant2 * 0.3f;
+
+    // Dritte Formante (schwächste)
+    float formant3 = std::sin(angle * currentVowel.f3 / 440.0f) * currentVowel.a3;
+    formantSample += formant3 * 0.2f;
+
+    // Mische das Original-Signal mit den Formanten
+    float morphFactor = vowelMorphValue * 0.8f; // Maximal 80% Vokal-Anteil
+    return juce::jmap(morphFactor, baseSample, baseSample * (1.0f + formantSample * 0.5f));
 }
-
 
 //==============================================================================
 bool AvSynthAudioProcessor::hasEditor() const {
@@ -417,34 +456,6 @@ float AvSynthAudioProcessor::getOscSample(OscType type, double angle) {
         return 0.0f;
     }
 }
-void AvSynthAudioProcessor::updateHighPassCoefficients(float frequency) {
-    auto sampleRate = getSampleRate();
-    if (sampleRate <= 0.0) return;
-
-    auto highPassCoefficients =
-        juce::dsp::FilterDesign<float>::designIIRHighpassHighOrderButterworthMethod(frequency, sampleRate, 4);
-
-    auto &leftHighPass = leftChain.get<0>();
-    *leftHighPass.get<0>().coefficients = *highPassCoefficients[0];
-    *leftHighPass.get<1>().coefficients = *highPassCoefficients[1];
-
-    auto &rightHighPass = rightChain.get<0>();
-    *rightHighPass.get<0>().coefficients = *highPassCoefficients[0];
-    *rightHighPass.get<1>().coefficients = *highPassCoefficients[1];
-}
-
-void AvSynthAudioProcessor::updateLowPassCoefficients(float frequency) {
-    auto lowPassCoefficients =
-        juce::dsp::FilterDesign<float>::designIIRLowpassHighOrderButterworthMethod(frequency, getSampleRate(), 4);
-
-    auto &leftLowPass = leftChain.get<1>();
-    *leftLowPass.get<0>().coefficients = *lowPassCoefficients[0];
-    *leftLowPass.get<1>().coefficients = *lowPassCoefficients[1];
-
-    auto &rightLowPass = rightChain.get<1>();
-    *rightLowPass.get<0>().coefficients = *lowPassCoefficients[0];
-    *rightLowPass.get<1>().coefficients = *lowPassCoefficients[1];
-}
 
 template <typename ParamT, AvSynthAudioProcessor::Parameters Param, typename... Args>
 static std::unique_ptr<ParamT> makeParameter(Args &&...args) {
@@ -459,12 +470,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout AvSynthAudioProcessor::creat
 
     layout.add(makeParameter<juce::AudioParameterFloat, Parameters::Frequency>(
         juce::NormalisableRange(20.0f, 20000.0f, 1.0f, 0.3f), 440.0f));
-
-    layout.add(makeParameter<juce::AudioParameterFloat, Parameters::HighPassFreq>(
-        juce::NormalisableRange(20.0f, 20000.0f, 1.0f, 0.3f), 20.0f));
-
-    layout.add(makeParameter<juce::AudioParameterFloat, Parameters::LowPassFreq>(
-        juce::NormalisableRange(20.0f, 20000.0f, 1.0f, 0.3f), 20000.0f));
 
     layout.add(makeParameter<juce::AudioParameterChoice, Parameters::OscType>(
         juce::StringArray{magic_enum::enum_name<OscType::Sine>().data(), magic_enum::enum_name<OscType::Saw>().data(),

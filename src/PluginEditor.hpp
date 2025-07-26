@@ -43,15 +43,8 @@ private:
     juce::ComboBox oscTypeComboBox;
     juce::AudioProcessorValueTreeState::ComboBoxAttachment oscTypeAttachment;
 
-    juce::Slider lowCutFreqSlider;
-    juce::AudioProcessorValueTreeState::SliderAttachment lowCutFreqAttachment;
-
-    juce::Slider highCutFreqSlider;
-    juce::AudioProcessorValueTreeState::SliderAttachment highCutFreqAttachment;
-
     juce::Slider vowelMorphSlider;
     juce::AudioProcessorValueTreeState::SliderAttachment vowelMorphAttachment;
-
     juce::Label vowelMorphLabel;
 
     // Reverb-Slider
@@ -62,7 +55,6 @@ private:
     juce::Slider bitCrusherSlider;
     juce::AudioProcessorValueTreeState::SliderAttachment bitCrusherAttachment;
     juce::Label bitCrusherLabel;
-
 
     juce::MidiKeyboardComponent keyboardComponent;
     WaveformComponent waveformComponent;
@@ -111,6 +103,12 @@ public:
 
         // Label-Farben
         setColour(juce::Label::textColourId, juce::Colours::white);
+
+        // PopupMenu-Farben für bessere ComboBox-Dropdown-Darstellung
+        setColour(juce::PopupMenu::backgroundColourId, juce::Colours::black.withAlpha(0.9f));
+        setColour(juce::PopupMenu::textColourId, juce::Colours::white);
+        setColour(juce::PopupMenu::highlightedBackgroundColourId, primary.withAlpha(0.6f));
+        setColour(juce::PopupMenu::highlightedTextColourId, juce::Colours::white);
     }
 
     void drawComboBox(juce::Graphics& g, int width, int height, bool isButtonDown,
@@ -126,13 +124,25 @@ public:
         g.setColour(primaryColor);
         g.drawRoundedRectangle(bounds, 5.0f, 2.0f);
 
-        // Text
-        g.setColour(juce::Colours::white);
-        g.drawFittedText(box.getText(), bounds.toNearestInt().reduced(4), juce::Justification::centredLeft, 1);
+        // Text-Bereich definieren (Platz für Pfeil lassen)
+        auto textBounds = bounds.reduced(8, 4);
+        textBounds.setWidth(textBounds.getWidth() - 20); // Platz für Pfeil
 
-        // Pfeil
-        auto arrowBounds = juce::Rectangle<float>(bounds.getRight() - 20, bounds.getCentreY() - 3, 10, 6);
+        // Text zeichnen
+        g.setColour(juce::Colours::white);
+        g.setFont(juce::Font(14.0f));
+        g.drawFittedText(box.getText(), textBounds.toNearestInt(), juce::Justification::centredLeft, 1);
+
+        // Pfeil zeichnen
+        auto arrowBounds = juce::Rectangle<float>(bounds.getRight() - 25, bounds.getCentreY() - 4, 15, 8);
         g.setColour(primaryColor);
+
+        // Einfacher Pfeil nach unten
+        juce::Path arrow;
+        arrow.addTriangle(arrowBounds.getX(), arrowBounds.getY(),
+                         arrowBounds.getX() + arrowBounds.getWidth() * 0.5f, arrowBounds.getBottom(),
+                         arrowBounds.getRight(), arrowBounds.getY());
+        g.fillPath(arrow);
     }
 
     void drawLinearSlider(juce::Graphics& g, int x, int y, int width, int height,
