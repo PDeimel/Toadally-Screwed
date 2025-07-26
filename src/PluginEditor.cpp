@@ -32,8 +32,7 @@ AvSynthAudioProcessorEditor::AvSynthAudioProcessorEditor(AvSynthAudioProcessor &
       bitCrusherAttachment(p.parameters, magic_enum::enum_name<AvSynthAudioProcessor::Parameters::BitCrusherRate>().data(), bitCrusherSlider),
 
       keyboardComponent(p.keyboardState, juce::MidiKeyboardComponent::horizontalKeyboard),
-      waveformComponent(p.circularBuffer, p.bufferWritePos),
-      adsrComponent()
+      waveformComponent(p.circularBuffer, p.bufferWritePos)
 {
     juce::ignoreUnused(processorRef);
 
@@ -66,6 +65,49 @@ AvSynthAudioProcessorEditor::AvSynthAudioProcessorEditor(AvSynthAudioProcessor &
     gainLabel.setJustificationType(juce::Justification::centred);
     gainLabel.setColour(juce::Label::textColourId, juce::Colours::white);
 
+    attackSlider.setRange(0.0, 1.0, 0.01);
+    decaySlider.setRange(0.0, 1.0, 0.01);
+    sustainSlider.setRange(0.0, 1.0, 0.01);
+    releaseSlider.setRange(0.0, 1.0, 0.01);
+
+    attackAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+       p.parameters, magic_enum::enum_name<AvSynthAudioProcessor::Parameters::Attack>().data(), attackSlider);
+    decayAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        p.parameters, magic_enum::enum_name<AvSynthAudioProcessor::Parameters::Decay>().data(), decaySlider);
+    sustainAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        p.parameters, magic_enum::enum_name<AvSynthAudioProcessor::Parameters::Sustain>().data(), sustainSlider);
+    releaseAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
+        p.parameters, magic_enum::enum_name<AvSynthAudioProcessor::Parameters::Release>().data(), releaseSlider);
+
+    adsrComponent.onParameterChanged = [this](float attack, float decay, float sustain, float release) {
+        // Parameter über die unsichtbaren Slider setzen
+        attackSlider.setValue(attack, juce::dontSendNotification);
+        decaySlider.setValue(decay, juce::dontSendNotification);
+        sustainSlider.setValue(sustain, juce::dontSendNotification);
+        releaseSlider.setValue(release, juce::dontSendNotification);
+
+        // Host benachrichtigen
+        attackSlider.valueChanged();
+        decaySlider.valueChanged();
+        sustainSlider.valueChanged();
+        releaseSlider.valueChanged();
+    };
+
+    attackSlider.addListener(this);
+    decaySlider.addListener(this);
+    sustainSlider.addListener(this);
+    releaseSlider.addListener(this);
+
+    adsrComponent.setAttack(p.parameters.getRawParameterValue(
+        magic_enum::enum_name<AvSynthAudioProcessor::Parameters::Attack>().data())->load());
+    adsrComponent.setDecay(p.parameters.getRawParameterValue(
+        magic_enum::enum_name<AvSynthAudioProcessor::Parameters::Decay>().data())->load());
+    adsrComponent.setSustain(p.parameters.getRawParameterValue(
+        magic_enum::enum_name<AvSynthAudioProcessor::Parameters::Sustain>().data())->load());
+    adsrComponent.setRelease(p.parameters.getRawParameterValue(
+        magic_enum::enum_name<AvSynthAudioProcessor::Parameters::Release>().data())->load());
+
+
     // Setup ComboBox with oscillator choices
     auto *oscTypeParam = dynamic_cast<juce::AudioParameterChoice *>(
         p.parameters.getParameter(magic_enum::enum_name<AvSynthAudioProcessor::Parameters::OscType>().data()));
@@ -82,6 +124,7 @@ AvSynthAudioProcessorEditor::AvSynthAudioProcessorEditor(AvSynthAudioProcessor &
     }
 
     oscTypeComboBox.addListener(this); // Add ComboBox listener
+
 
     // Initiales Farbschema und Bild setzen
     currentOscType = oscTypeComboBox.getSelectedItemIndex();
@@ -251,6 +294,27 @@ void AvSynthAudioProcessorEditor::updateOscImage(int oscTypeIndex)
     }
 }
 
+void AvSynthAudioProcessorEditor::sliderValueChanged(juce::Slider* slider)
+{
+    // ADSR Component updaten wenn Parameter sich ändern
+    if (slider == &attackSlider)
+    {
+        adsrComponent.setAttack(static_cast<float>(slider->getValue()));
+    }
+    else if (slider == &decaySlider)
+    {
+        adsrComponent.setDecay(static_cast<float>(slider->getValue()));
+    }
+    else if (slider == &sustainSlider)
+    {
+        adsrComponent.setSustain(static_cast<float>(slider->getValue()));
+    }
+    else if (slider == &releaseSlider)
+    {
+        adsrComponent.setRelease(static_cast<float>(slider->getValue()));
+    }
+}
+
 void AvSynthAudioProcessorEditor::comboBoxChanged(juce::ComboBox *comboBoxThatHasChanged)
 {
     if (comboBoxThatHasChanged == &oscTypeComboBox)
@@ -276,6 +340,6 @@ std::vector<juce::Component *> AvSynthAudioProcessorEditor::GetComps()
     return {
         &gainSlider, &frequencySlider, &oscTypeComboBox, &lowCutFreqSlider,
         &highCutFreqSlider, &vowelMorphSlider, &reverbSlider, &bitCrusherSlider, &keyboardComponent,
-        &waveformComponent, &adsrComponent
+        &waveformComponent, &adsrComponent, &attackSlider, &decaySlider, &sustainSlider, &releaseSlider
     };
 }

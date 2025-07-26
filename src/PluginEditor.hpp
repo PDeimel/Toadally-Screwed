@@ -6,7 +6,8 @@
 
 //==============================================================================
 class AvSynthAudioProcessorEditor final : public juce::AudioProcessorEditor,
-                                          public juce::ComboBox::Listener {
+                                          public juce::ComboBox::Listener,
+                                          public juce::Slider::Listener{
 public:
     explicit AvSynthAudioProcessorEditor(AvSynthAudioProcessor &);
     ~AvSynthAudioProcessorEditor() override;
@@ -18,6 +19,7 @@ public:
     void updateOscImage(int);
     void comboBoxChanged(juce::ComboBox *comboBoxThatHasChanged) override;
     void updateColorTheme(int oscTypeIndex);
+    void sliderValueChanged(juce::Slider* slider) override;
 
 private:
     std::vector<juce::Component *> GetComps();
@@ -63,6 +65,12 @@ private:
     juce::MidiKeyboardComponent keyboardComponent;
     WaveformComponent waveformComponent;
     ADSRComponent adsrComponent;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attackAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> decayAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> sustainAttachment;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> releaseAttachment;
+
+    juce::Slider attackSlider, decaySlider, sustainSlider, releaseSlider;
 
     juce::ImageComponent oscImage;
 

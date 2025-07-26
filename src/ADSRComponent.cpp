@@ -100,7 +100,12 @@ void ADSRComponent::mouseDrag(const juce::MouseEvent& event)
     auto bounds = getLocalBounds().toFloat().reduced(10);
     auto delta = event.position - lastMousePos;
     
-    const float sensitivity = 0.003f;
+    const float sensitivity = 0.005f;
+
+    float oldAttack = attackValue;
+    float oldDecay = decayValue;
+    float oldSustain = sustainValue;
+    float oldRelease = releaseValue;
     
     switch (currentDragMode)
     {
@@ -126,8 +131,12 @@ void ADSRComponent::mouseDrag(const juce::MouseEvent& event)
     
     lastMousePos = event.position;
     
-    // Callback aufrufen
-    if (onParameterChanged)
+    bool valuesChanged = !juce::approximatelyEqual(attackValue, oldAttack) ||
+                        !juce::approximatelyEqual(decayValue, oldDecay) ||
+                        !juce::approximatelyEqual(sustainValue, oldSustain) ||
+                        !juce::approximatelyEqual(releaseValue, oldRelease);
+
+    if (valuesChanged && onParameterChanged)
     {
         onParameterChanged(attackValue, decayValue, sustainValue, releaseValue);
     }
