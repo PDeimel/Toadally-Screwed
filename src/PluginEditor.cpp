@@ -125,6 +125,7 @@ AvSynthAudioProcessorEditor::AvSynthAudioProcessorEditor(AvSynthAudioProcessor &
 
     oscTypeComboBox.addListener(this); // Add ComboBox listener
 
+    startTimer(33); // ~30 FPS für UI-Updates
 
     // Initiales Farbschema und Bild setzen
     currentOscType = oscTypeComboBox.getSelectedItemIndex();
@@ -147,6 +148,7 @@ AvSynthAudioProcessorEditor::AvSynthAudioProcessorEditor(AvSynthAudioProcessor &
 }
 
 AvSynthAudioProcessorEditor::~AvSynthAudioProcessorEditor() {
+    stopTimer();
     setLookAndFeel(nullptr);
 }
 
@@ -180,6 +182,14 @@ void AvSynthAudioProcessorEditor::resized()
     // Rechten Bereich für Reverb-Slider reservieren
     auto reverbArea = bounds.removeFromRight(80);
 
+    // Untere Bereiche für Keyboard und ADSR reservieren (bevor die Spalten erstellt werden)
+    auto keyboardArea = bounds.removeFromBottom(80);  // Keyboard unten
+    auto adsrArea = bounds.removeFromBottom(180);     // ADSR darüber
+
+    // Kleiner Abstand zwischen den Bereichen
+    bounds.removeFromBottom(10); // Abstand zum ADSR
+    adsrArea.removeFromBottom(10); // Abstand zwischen ADSR und Keyboard
+
     // Verbleibendes Layout: links Bedienelemente, rechts Visualisierungen
     auto leftColumn = bounds.removeFromLeft(bounds.getWidth() / 2);
     auto rightColumn = bounds;
@@ -199,14 +209,15 @@ void AvSynthAudioProcessorEditor::resized()
     vowelMorphSlider.setBounds(leftColumn.removeFromTop(controlHeight));
     bitCrusherSlider.setBounds(leftColumn.removeFromTop(controlHeight + 20));
     bitCrusherLabel.setBounds(bitCrusherSlider.getX(), bitCrusherSlider.getY() - 20, bitCrusherSlider.getWidth(), 20);
-    keyboardComponent.setBounds(leftColumn.removeFromTop(80));
 
     // Rechte Spalte: oben das Bild, darunter die Waveform
     auto imageArea = rightColumn.removeFromTop(100);
     oscImage.setBounds(imageArea.reduced(10));
-
     waveformComponent.setBounds(rightColumn.reduced(10));
-    adsrComponent.setBounds(rightColumn.reduced(10));
+
+    // Komponenten die die volle Breite einnehmen (unterhalb der Spalten)
+    adsrComponent.setBounds(adsrArea.reduced(10, 5)); // Horizontal 10px, vertikal 5px Padding
+    keyboardComponent.setBounds(keyboardArea);
 }
 
 void AvSynthAudioProcessorEditor::updateColorTheme(int oscTypeIndex)
@@ -313,6 +324,17 @@ void AvSynthAudioProcessorEditor::sliderValueChanged(juce::Slider* slider)
     {
         adsrComponent.setRelease(static_cast<float>(slider->getValue()));
     }
+}
+
+void AvSynthAudioProcessorEditor::timerCallback()
+{
+    // ADSR-Plotter mit aktuellen Werten updaten
+    float currentValue = processorRef.getCurrentEnvelopeValue();
+    bool isActive = processorRef.isEnvelopeActive();
+    int state = processorRef.getADSRState();
+
+    adsrComponent.updateEnvelopeValue(currentValue, isActive);
+    adsrComponent.setADSRState(state);
 }
 
 void AvSynthAudioProcessorEditor::comboBoxChanged(juce::ComboBox *comboBoxThatHasChanged)

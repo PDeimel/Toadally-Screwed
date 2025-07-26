@@ -245,9 +245,39 @@ void AvSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             float adsrValue = adsr.getNextSample();
             currentSample *= adsrValue;
 
+            // ADSR-Wert für UI speichern (nur jeden 4. Sample für Performance)
+            if (sample % 4 == 0) {
+                currentEnvelopeValue.store(adsrValue);
+
+                // ADSR-Zustand bestimmen
+                if (adsr.isActive()) {
+                    // Vereinfachte Zustandserkennung basierend auf Wert und Trends
+                    static float lastValue = 0.0f;
+                    float delta = adsrValue - lastValue;
+
+                    if (adsrValue < 0.01f && !noteIsActive) {
+                        currentADSRState.store(0); // Idle
+                    } else if (delta > 0.001f && adsrValue < 0.99f) {
+                        currentADSRState.store(1); // Attack
+                    } else if (delta < -0.001f && adsrValue > adsrParams.sustain + 0.1f) {
+                        currentADSRState.store(2); // Decay
+                    } else if (std::abs(delta) < 0.001f && noteIsActive) {
+                        currentADSRState.store(3); // Sustain
+                    } else if (delta < -0.001f && !noteIsActive) {
+                        currentADSRState.store(4); // Release
+                    }
+
+                    lastValue = adsrValue;
+                } else {
+                    currentADSRState.store(0); // Idle
+                }
+            }
+
             // Wenn ADSR nicht mehr aktiv ist, Note beenden
             if (!adsr.isActive()) {
                 noteIsActive = false;
+                currentEnvelopeValue.store(0.0f);
+                currentADSRState.store(0);
             }
 
             for (int channel = 0; channel < totalNumOutputChannels; ++channel) {
@@ -257,6 +287,8 @@ void AvSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     }
     else {
         buffer.clear(); // Kein Ton -> Stille ausgeben
+        currentEnvelopeValue.store(0.0f);
+        currentADSRState.store(0);
     }
 
     // Filterverarbeitung

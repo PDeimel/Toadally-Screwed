@@ -7,7 +7,8 @@
 //==============================================================================
 class AvSynthAudioProcessorEditor final : public juce::AudioProcessorEditor,
                                           public juce::ComboBox::Listener,
-                                          public juce::Slider::Listener{
+                                          public juce::Slider::Listener,
+                                          public juce::Timer{
 public:
     explicit AvSynthAudioProcessorEditor(AvSynthAudioProcessor &);
     ~AvSynthAudioProcessorEditor() override;
@@ -22,6 +23,7 @@ public:
     void sliderValueChanged(juce::Slider* slider) override;
 
 private:
+    void timerCallback() override;
     std::vector<juce::Component *> GetComps();
     juce::Colour getCurrentPrimaryColor() const;
     juce::Colour getCurrentSecondaryColor() const;

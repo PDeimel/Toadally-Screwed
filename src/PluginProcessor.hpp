@@ -76,6 +76,10 @@ class AvSynthAudioProcessor final : public juce::AudioProcessor {
     void updateReverbParameters(float reverbAmount);
     void updateADSRParameters(float attack, float decay, float sustain, float release);
 
+    float getCurrentEnvelopeValue() const { return currentEnvelopeValue.load(); }
+    bool isEnvelopeActive() const { return adsr.isActive(); }
+    int getADSRState() const { return currentADSRState.load(); }
+
   private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
@@ -108,6 +112,9 @@ class AvSynthAudioProcessor final : public juce::AudioProcessor {
     juce::ADSR::Parameters adsrParams;
 
     double currentAngle = 0.0, angleDelta = 0.0;
+
+    std::atomic<float> currentEnvelopeValue{0.0f};
+    std::atomic<int> currentADSRState{0}; // 0=idle, 1=attack, 2=decay, 3=sustain, 4=release
 
   private:
     //==============================================================================
