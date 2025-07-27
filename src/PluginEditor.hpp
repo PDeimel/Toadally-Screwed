@@ -3,218 +3,256 @@
 #include "PluginProcessor.hpp"
 #include "WaveformComponent.hpp"
 #include "ADSRComponent.hpp"
+#include "PresetManager.hpp"
 
-//==============================================================================
+/**
+ * @file PluginEditor.hpp
+ * @brief Main editor class for the AvSynth audio plugin
+ */
+
+/**
+ * @brief Custom look and feel class for the AvSynth UI
+ *
+ * This class provides custom styling and theming capabilities for the plugin interface,
+ * with dynamic color schemes based on oscillator type.
+ */
+class CustomLookAndFeel : public juce::LookAndFeel_V4 {
+public:
+    /**
+     * @brief Constructor with default colors
+     */
+    CustomLookAndFeel();
+
+    /**
+     * @brief Update the color scheme
+     * @param primary Primary theme color
+     * @param secondary Secondary theme color
+     */
+    void updateColors(juce::Colour primary, juce::Colour secondary);
+
+    /**
+     * @brief Custom button background drawing
+     * @param g Graphics context
+     * @param button Button to draw
+     * @param backgroundColour Background color
+     * @param shouldDrawButtonAsHighlighted Highlight state
+     * @param shouldDrawButtonAsDown Pressed state
+     */
+    void drawButtonBackground(juce::Graphics& g, juce::Button& button, const juce::Colour& backgroundColour,
+                             bool shouldDrawButtonAsHighlighted, bool shouldDrawButtonAsDown) override;
+
+    /**
+     * @brief Custom combo box drawing
+     * @param g Graphics context
+     * @param width Component width
+     * @param height Component height
+     * @param isButtonDown Button pressed state
+     * @param buttonX Button area X
+     * @param buttonY Button area Y
+     * @param buttonW Button area width
+     * @param buttonH Button area height
+     * @param box ComboBox reference
+     */
+    void drawComboBox(juce::Graphics& g, int width, int height, bool isButtonDown,
+                      int buttonX, int buttonY, int buttonW, int buttonH, juce::ComboBox& box) override;
+
+    /**
+     * @brief Custom linear slider drawing
+     * @param g Graphics context
+     * @param x Slider X position
+     * @param y Slider Y position
+     * @param width Slider width
+     * @param height Slider height
+     * @param sliderPos Current slider position
+     * @param minSliderPos Minimum slider position
+     * @param maxSliderPos Maximum slider position
+     * @param style Slider style
+     * @param slider Slider reference
+     */
+    void drawLinearSlider(juce::Graphics& g, int x, int y, int width, int height,
+                         float sliderPos, float minSliderPos, float maxSliderPos,
+                         const juce::Slider::SliderStyle style, juce::Slider& slider) override;
+
+private:
+    juce::Colour primaryColor = juce::Colours::orange;   ///< Primary theme color
+    juce::Colour secondaryColor = juce::Colours::darkorange; ///< Secondary theme color
+};
+
+/**
+ * @brief Main editor class for the AvSynth audio plugin
+ *
+ * This class provides the graphical user interface for the AvSynth synthesizer,
+ * including parameter controls, visualization, and preset management.
+ */
 class AvSynthAudioProcessorEditor final : public juce::AudioProcessorEditor,
                                           public juce::ComboBox::Listener,
                                           public juce::Button::Listener,
-                                          public juce::Timer{
+                                          public juce::Timer {
 public:
-    explicit AvSynthAudioProcessorEditor(AvSynthAudioProcessor &);
+    /**
+     * @brief Constructor
+     * @param processor Reference to the audio processor
+     */
+    explicit AvSynthAudioProcessorEditor(AvSynthAudioProcessor &processor);
+
+    /**
+     * @brief Destructor
+     */
     ~AvSynthAudioProcessorEditor() override;
 
+    void setupLabels();
+
     //==============================================================================
-    void paint(juce::Graphics &) override;
+    // Component overrides
+
+    void addAndMakeVisibleComponents();
+
+    /**
+     * @brief Paint the component background
+     * @param g Graphics context for drawing
+     */
+    void paint(juce::Graphics &g) override;
+
+    /**
+     * @brief Layout all child components
+     */
     void resized() override;
 
-    void updateOscImage(int);
+    //==============================================================================
+    // Listener implementations
+
+    /**
+     * @brief Handle combo box selection changes
+     * @param comboBoxThatHasChanged Pointer to the changed combo box
+     */
     void comboBoxChanged(juce::ComboBox *comboBoxThatHasChanged) override;
+
+    /**
+     * @brief Handle button clicks
+     * @param button Pointer to the clicked button
+     */
     void buttonClicked(juce::Button* button) override;
+
+    /**
+     * @brief Timer callback for regular UI updates
+     */
+    void timerCallback() override;
+
+    //==============================================================================
+    // Public utility methods
+
+    /**
+     * @brief Update the color theme based on oscillator type
+     * @param oscTypeIndex Index of the oscillator type (0-3)
+     */
     void updateColorTheme(int oscTypeIndex);
 
-private:
-    void timerCallback() override;
-    std::vector<juce::Component *> GetComps();
-    juce::Colour getCurrentPrimaryColor() const;
-    juce::Colour getCurrentSecondaryColor() const;
+    /**
+     * @brief Update the oscillator waveform image
+     * @param oscTypeIndex Index of the oscillator type (0-3)
+     */
+    void updateOscImage(int oscTypeIndex);
 
-    // Preset-Funktionen
-    void loadToadPreset(int presetIndex);
+    /**
+     * @brief Get current primary color
+     * @return Current primary theme color
+     */
+    juce::Colour getCurrentPrimaryColor() const { return primaryColor; }
+
+    /**
+     * @brief Get current secondary color
+     * @return Current secondary theme color
+     */
+    juce::Colour getCurrentSecondaryColor() const { return secondaryColor; }
+
+private:
+    //==============================================================================
+    // Private methods
+
+    /**
+     * @brief Get all components for mass operations
+     * @return Vector of pointers to all main components
+     */
+    std::vector<juce::Component *> getComponents();
+
+    /**
+     * @brief Setup preset buttons with proper styling and listeners
+     */
     void setupPresetButtons();
 
-    AvSynthAudioProcessor &processorRef;
+    /**
+     * @brief Load a Toad preset by index
+     * @param presetIndex Index of the preset to load (0-3)
+     */
+    void loadToadPreset(int presetIndex);
 
-    juce::Slider gainSlider;
-    juce::AudioProcessorValueTreeState::SliderAttachment gainAttachment;
+    /**
+     * @brief Setup ADSR component callbacks and initial values
+     */
+    void setupADSRComponent();
 
-    juce::Label gainLabel;
+    void setupOscillatorComboBox();
 
-    juce::Slider frequencySlider;
-    juce::AudioProcessorValueTreeState::SliderAttachment frequencyAttachment;
+    /**
+     * @brief Update UI components to reflect current parameter values
+     */
+    void updateUIFromParameters();
 
-    juce::Label frequencyLabel;
+    //==============================================================================
+    // Member variables
 
-    juce::ComboBox oscTypeComboBox;
-    juce::AudioProcessorValueTreeState::ComboBoxAttachment oscTypeAttachment;
+    // Processor reference
+    AvSynthAudioProcessor &processorRef; ///< Reference to the audio processor
 
-    juce::Slider vowelMorphSlider;
-    juce::AudioProcessorValueTreeState::SliderAttachment vowelMorphAttachment;
-    juce::Label vowelMorphLabel;
+    // Parameter controls
+    juce::Slider gainSlider;                                              ///< Main gain control
+    juce::AudioProcessorValueTreeState::SliderAttachment gainAttachment; ///< Gain parameter attachment
+    juce::Label gainLabel;                                                ///< Gain control label
 
-    // Reverb-Slider
-    juce::Slider reverbSlider;
-    juce::AudioProcessorValueTreeState::SliderAttachment reverbAttachment;
-    juce::Label reverbLabel;
+    juce::Slider frequencySlider;                                              ///< Frequency control
+    juce::AudioProcessorValueTreeState::SliderAttachment frequencyAttachment; ///< Frequency parameter attachment
+    juce::Label frequencyLabel;                                                ///< Frequency control label
 
-    juce::Slider bitCrusherSlider;
-    juce::AudioProcessorValueTreeState::SliderAttachment bitCrusherAttachment;
-    juce::Label bitCrusherLabel;
+    juce::ComboBox oscTypeComboBox;                                              ///< Oscillator type selector
+    juce::AudioProcessorValueTreeState::ComboBoxAttachment oscTypeAttachment; ///< Oscillator type attachment
 
-    // Toad Preset Buttons
-    juce::TextButton toadPreset1Button;
-    juce::TextButton toadPreset2Button;
-    juce::TextButton toadPreset3Button;
-    juce::TextButton toadPreset4Button;
-    juce::Label presetLabel;
+    juce::Slider vowelMorphSlider;                                              ///< Vowel morphing control
+    juce::AudioProcessorValueTreeState::SliderAttachment vowelMorphAttachment; ///< Vowel morph attachment
+    juce::Label vowelMorphLabel;                                                ///< Vowel morph label
 
-    juce::MidiKeyboardComponent keyboardComponent;
-    WaveformComponent waveformComponent;
-    ADSRComponent adsrComponent;
+    juce::Slider reverbSlider;                                              ///< Reverb amount control
+    juce::AudioProcessorValueTreeState::SliderAttachment reverbAttachment; ///< Reverb parameter attachment
+    juce::Label reverbLabel;                                                ///< Reverb control label
 
-    juce::ImageComponent oscImage;
+    juce::Slider bitCrusherSlider;                                              ///< Bit crusher control
+    juce::AudioProcessorValueTreeState::SliderAttachment bitCrusherAttachment; ///< Bit crusher attachment
+    juce::Label bitCrusherLabel;                                                ///< Bit crusher label
 
-    // Farbschema-Variablen
-    int currentOscType = 0;
-    juce::Colour primaryColor = juce::Colours::red;
-    juce::Colour secondaryColor = juce::Colours::darkred;
+    // Preset controls
+    juce::TextButton toadPreset1Button; ///< Toad preset button 1
+    juce::TextButton toadPreset2Button; ///< Toad preset button 2
+    juce::TextButton toadPreset3Button; ///< Toad preset button 3
+    juce::TextButton toadPreset4Button; ///< Toad preset button 4
+    juce::Label presetLabel;            ///< Preset section label
 
+    // Interactive components
+    juce::MidiKeyboardComponent keyboardComponent; ///< MIDI keyboard component
+    WaveformComponent waveformComponent;           ///< Waveform visualization component
+    ADSRComponent adsrComponent;                   ///< ADSR envelope component
+
+    // Visual elements
+    juce::ImageComponent oscImage; ///< Oscillator waveform image display
+
+    // Theme and styling
+    CustomLookAndFeel customLookAndFeel; ///< Custom look and feel instance
+    int currentOscType = 0;              ///< Current oscillator type index
+    juce::Colour primaryColor = juce::Colours::red;     ///< Current primary theme color
+    juce::Colour secondaryColor = juce::Colours::darkred; ///< Current secondary theme color
+
+    // UI update optimization
+    static constexpr int UI_UPDATE_RATE_HZ = 30; ///< UI update rate in Hz
+    static constexpr int TIMER_INTERVAL_MS = 1000 / UI_UPDATE_RATE_HZ; ///< Timer interval in milliseconds
+
+    //==============================================================================
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(AvSynthAudioProcessorEditor)
 };
-
-class CustomLookAndFeel : public juce::LookAndFeel_V4 {
-private:
-    juce::Colour primaryColor = juce::Colours::orange;
-    juce::Colour secondaryColor = juce::Colours::darkorange;
-
-public:
-    CustomLookAndFeel() {
-        updateColors(juce::Colours::orange, juce::Colours::darkorange);
-    }
-
-    void updateColors(juce::Colour primary, juce::Colour secondary) {
-        primaryColor = primary;
-        secondaryColor = secondary;
-
-        // Slider-Farben
-        setColour(juce::Slider::thumbColourId, primary);
-        setColour(juce::Slider::trackColourId, secondary.withAlpha(0.6f));
-        setColour(juce::Slider::backgroundColourId, juce::Colours::black.withAlpha(0.3f));
-
-        // ComboBox-Farben
-        setColour(juce::ComboBox::outlineColourId, primary);
-        setColour(juce::ComboBox::backgroundColourId, juce::Colours::black.withAlpha(0.7f));
-        setColour(juce::ComboBox::textColourId, juce::Colours::white);
-        setColour(juce::ComboBox::arrowColourId, primary);
-
-        // Label-Farben
-        setColour(juce::Label::textColourId, juce::Colours::white);
-
-        // Button-Farben
-        setColour(juce::TextButton::buttonColourId, juce::Colours::black.withAlpha(0.7f));
-        setColour(juce::TextButton::buttonOnColourId, primary.withAlpha(0.8f));
-        setColour(juce::TextButton::textColourOffId, juce::Colours::white);
-        setColour(juce::TextButton::textColourOnId, juce::Colours::white);
-
-        // PopupMenu-Farben für bessere ComboBox-Dropdown-Darstellung
-        setColour(juce::PopupMenu::backgroundColourId, juce::Colours::black.withAlpha(0.9f));
-        setColour(juce::PopupMenu::textColourId, juce::Colours::white);
-        setColour(juce::PopupMenu::highlightedBackgroundColourId, primary.withAlpha(0.6f));
-        setColour(juce::PopupMenu::highlightedTextColourId, juce::Colours::white);
-    }
-
-    void drawButtonBackground(juce::Graphics& g, juce::Button& button, const juce::Colour& /*backgroundColour*/,
-                             bool /*shouldDrawButtonAsHighlighted*/, bool shouldDrawButtonAsDown) override
-    {
-        auto bounds = button.getLocalBounds().toFloat();
-
-        // Hintergrund
-        if (shouldDrawButtonAsDown || button.getToggleState()) {
-            g.setColour(primaryColor.withAlpha(0.8f));
-        } else {
-            g.setColour(juce::Colours::black.withAlpha(0.7f));
-        }
-        g.fillRoundedRectangle(bounds, 5.0f);
-
-        // Umrandung
-        g.setColour(primaryColor);
-        g.drawRoundedRectangle(bounds, 5.0f, 2.0f);
-    }
-
-    void drawComboBox(juce::Graphics& g, int width, int height, bool /*isButtonDown*/,
-                      int /*buttonX*/, int /*buttonY*/, int /*buttonW*/, int /*buttonH*/, juce::ComboBox& box) override
-    {
-        auto bounds = juce::Rectangle<int>(0, 0, width, height).toFloat();
-
-        // Hintergrund mit Theme-Farbe
-        g.setColour(juce::Colours::black.withAlpha(0.7f));
-        g.fillRoundedRectangle(bounds, 5.0f);
-
-        // Umrandung mit Primary-Farbe
-        g.setColour(primaryColor);
-        g.drawRoundedRectangle(bounds, 5.0f, 2.0f);
-
-        // Text-Bereich definieren (Platz für Pfeil lassen)
-        auto textBounds = bounds.reduced(8, 4);
-        textBounds.setWidth(textBounds.getWidth() - 20); // Platz für Pfeil
-
-        // Text zeichnen
-        g.setColour(juce::Colours::white);
-        g.setFont(juce::FontOptions(14.0f)); // Neue JUCE Font API
-        g.drawFittedText(box.getText(), textBounds.toNearestInt(), juce::Justification::centredLeft, 1);
-
-        // Pfeil zeichnen
-        auto arrowBounds = juce::Rectangle<float>(bounds.getRight() - 25, bounds.getCentreY() - 4, 15, 8);
-        g.setColour(primaryColor);
-
-        // Einfacher Pfeil nach unten
-        juce::Path arrow;
-        arrow.addTriangle(arrowBounds.getX(), arrowBounds.getY(),
-                         arrowBounds.getX() + arrowBounds.getWidth() * 0.5f, arrowBounds.getBottom(),
-                         arrowBounds.getRight(), arrowBounds.getY());
-        g.fillPath(arrow);
-    }
-
-    void drawLinearSlider(juce::Graphics& g, int x, int y, int width, int height,
-                     float sliderPos, float minSliderPos, float maxSliderPos,
-                     const juce::Slider::SliderStyle style, juce::Slider& slider) override
-{
-    if (style == juce::Slider::LinearVertical)
-    {
-        // Vertikaler Slider (für Reverb)
-        auto trackBounds = juce::Rectangle<float>(static_cast<float>(x + width) * 0.4f, static_cast<float>(y), static_cast<float>(width) * 0.2f, static_cast<float>(height));
-
-        // Track (Hintergrund)
-        g.setColour(secondaryColor.withAlpha(0.3f));
-        g.fillRoundedRectangle(trackBounds, 2.0f);
-
-        // Filled Track (von unten bis zur aktuellen Position)
-        // Bei vertikalen Slidern geht sliderPos von unten (maxSliderPos) nach oben (minSliderPos)
-        auto filledHeight = maxSliderPos - sliderPos; // Höhe vom unteren Ende bis zur aktuellen Position
-        auto filledTrack = juce::Rectangle<float>(trackBounds.getX(),
-                                                 sliderPos, // Start bei aktueller Position
-                                                 trackBounds.getWidth(),
-                                                 filledHeight); // Bis zum unteren Ende
-        g.setColour(primaryColor.withAlpha(0.8f));
-        g.fillRoundedRectangle(filledTrack, 2.0f);
-
-        // Thumb (Slider-Knopf)
-        auto thumbSize = 12.0f;
-        auto thumbBounds = juce::Rectangle<float>(static_cast<float>(x + width) * 0.5f - thumbSize * 0.5f,
-                                                 sliderPos - thumbSize * 0.5f,
-                                                 thumbSize, thumbSize);
-        g.setColour(primaryColor);
-        g.fillEllipse(thumbBounds);
-
-        // Thumb-Outline
-        g.setColour(juce::Colours::white);
-        g.drawEllipse(thumbBounds, 2.0f);
-    }
-    else
-    {
-        // Horizontaler Slider
-        LookAndFeel_V4::drawLinearSlider(g, x, y, width, height, sliderPos, minSliderPos, maxSliderPos, style, slider);
-    }
-}
-};
-
-inline CustomLookAndFeel customLookAndFeel;

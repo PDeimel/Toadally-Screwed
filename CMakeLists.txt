@@ -67,9 +67,12 @@ juce_add_binary_data(ToadyAssets
 target_sources(Toady
         PRIVATE
         src/ADSRComponent.cpp
+        src/AudioEffects.cpp
         src/PluginEditor.cpp
         src/PluginProcessor.cpp
+        src/PresetManager.cpp
         src/WaveformComponent.cpp
+        src/VowelFilter.cpp
         src/Utils.cpp)
 
 # `target_compile_definitions` adds some preprocessor definitions to our target. In a Projucer
