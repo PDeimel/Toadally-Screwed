@@ -67,7 +67,6 @@ juce_add_binary_data(ToadyAssets
 target_sources(Toady
         PRIVATE
         src/ADSRComponent.cpp
-        src/ADSRComponent.hpp
         src/PluginEditor.cpp
         src/PluginProcessor.cpp
         src/WaveformComponent.cpp
