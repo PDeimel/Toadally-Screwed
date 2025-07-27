@@ -46,7 +46,7 @@ AvSynthAudioProcessorEditor::AvSynthAudioProcessorEditor(AvSynthAudioProcessor &
     // BitCrusher-Slider konfigurieren
     bitCrusherSlider.setRange(0.01, 1.0, 0.01);
     bitCrusherSlider.setValue(0.01); // Standard = keine Veränderung
-    bitCrusherSlider.setSliderStyle(juce::Slider::LinearHorizontal);
+    bitCrusherSlider.setSliderStyle(juce::Slider::LinearVertical);
     bitCrusherSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 60, 20);
     bitCrusherSlider.setLookAndFeel(&customLookAndFeel);
 
@@ -192,8 +192,7 @@ void AvSynthAudioProcessorEditor::resized()
 {
     auto bounds = getLocalBounds().reduced(10);
 
-    // Rechten Bereich für Reverb-Slider reservieren
-    auto reverbArea = bounds.removeFromRight(80);
+    auto rightSliderArea = bounds.removeFromRight(160);
 
     // Untere Bereiche für Keyboard und ADSR reservieren (bevor die Spalten erstellt werden)
     auto keyboardArea = bounds.removeFromBottom(80);  // Keyboard unten
@@ -207,10 +206,18 @@ void AvSynthAudioProcessorEditor::resized()
     auto leftColumn = bounds.removeFromLeft(bounds.getWidth() / 2);
     auto rightColumn = bounds;
 
+    // Rechten Bereich für Reverb-Slider reservieren
+    auto reverbArea = rightSliderArea.removeFromLeft(80);
+    auto bitCrusherArea = rightSliderArea;
+
     // Reverb-Slider (vertikal, rechts)
     auto reverbLabelArea = reverbArea.removeFromTop(20);
     reverbLabel.setBounds(reverbLabelArea);
     reverbSlider.setBounds(reverbArea.reduced(10));
+
+    auto bitCrusherLabelArea = bitCrusherArea.removeFromTop(20);
+    bitCrusherLabel.setBounds(bitCrusherLabelArea);
+    bitCrusherSlider.setBounds(bitCrusherArea.reduced(10));
 
     // Linke Spalte: Bedienelemente vertikal stapeln
     auto controlHeight = 40;
@@ -223,9 +230,6 @@ void AvSynthAudioProcessorEditor::resized()
     leftColumn.removeFromTop(20); // Zusätzlicher Abstand
     vowelMorphSlider.setBounds(leftColumn.removeFromTop(controlHeight + 20));
     vowelMorphLabel.setBounds(vowelMorphSlider.getX(), vowelMorphSlider.getY() - 20, vowelMorphSlider.getWidth(), 20);
-
-    bitCrusherSlider.setBounds(leftColumn.removeFromTop(controlHeight + 20));
-    bitCrusherLabel.setBounds(bitCrusherSlider.getX(), bitCrusherSlider.getY() - 20, bitCrusherSlider.getWidth(), 20);
 
     // Rechte Spalte: oben das Bild, darunter die Waveform
     auto imageArea = rightColumn.removeFromTop(100);

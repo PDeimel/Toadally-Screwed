@@ -138,42 +138,46 @@ public:
     }
 
     void drawLinearSlider(juce::Graphics& g, int x, int y, int width, int height,
-                         float sliderPos, float minSliderPos, float maxSliderPos,
-                         const juce::Slider::SliderStyle style, juce::Slider& slider) override
+                     float sliderPos, float minSliderPos, float maxSliderPos,
+                     const juce::Slider::SliderStyle style, juce::Slider& slider) override
+{
+    if (style == juce::Slider::LinearVertical)
     {
-        if (style == juce::Slider::LinearVertical)
-        {
-            // Vertikaler Slider (für Reverb)
-            auto trackBounds = juce::Rectangle<float>(static_cast<float>(x + width) * 0.4f, static_cast<float>(y), static_cast<float>(width) * 0.2f, static_cast<float>(height));
+        // Vertikaler Slider (für Reverb)
+        auto trackBounds = juce::Rectangle<float>(static_cast<float>(x + width) * 0.4f, static_cast<float>(y), static_cast<float>(width) * 0.2f, static_cast<float>(height));
 
-            // Track (Hintergrund)
-            g.setColour(secondaryColor.withAlpha(0.3f));
-            g.fillRoundedRectangle(trackBounds, 2.0f);
+        // Track (Hintergrund)
+        g.setColour(secondaryColor.withAlpha(0.3f));
+        g.fillRoundedRectangle(trackBounds, 2.0f);
 
-            // Filled Track (bis zur aktuellen Position)
-            auto filledHeight = sliderPos - static_cast<float>(y);
-            auto filledTrack = juce::Rectangle<float>(trackBounds.getX(), static_cast<float>(y), trackBounds.getWidth(), filledHeight);
-            g.setColour(primaryColor.withAlpha(0.8f));
-            g.fillRoundedRectangle(filledTrack, 2.0f);
+        // Filled Track (von unten bis zur aktuellen Position)
+        // Bei vertikalen Slidern geht sliderPos von unten (maxSliderPos) nach oben (minSliderPos)
+        auto filledHeight = maxSliderPos - sliderPos; // Höhe vom unteren Ende bis zur aktuellen Position
+        auto filledTrack = juce::Rectangle<float>(trackBounds.getX(),
+                                                 sliderPos, // Start bei aktueller Position
+                                                 trackBounds.getWidth(),
+                                                 filledHeight); // Bis zum unteren Ende
+        g.setColour(primaryColor.withAlpha(0.8f));
+        g.fillRoundedRectangle(filledTrack, 2.0f);
 
-            // Thumb (Slider-Knopf)
-            auto thumbSize = 12.0f;
-            auto thumbBounds = juce::Rectangle<float>(static_cast<float>(x + width) * 0.5f - thumbSize * 0.5f,
-                                                     sliderPos - thumbSize * 0.5f,
-                                                     thumbSize, thumbSize);
-            g.setColour(primaryColor);
-            g.fillEllipse(thumbBounds);
+        // Thumb (Slider-Knopf)
+        auto thumbSize = 12.0f;
+        auto thumbBounds = juce::Rectangle<float>(static_cast<float>(x + width) * 0.5f - thumbSize * 0.5f,
+                                                 sliderPos - thumbSize * 0.5f,
+                                                 thumbSize, thumbSize);
+        g.setColour(primaryColor);
+        g.fillEllipse(thumbBounds);
 
-            // Thumb-Outline
-            g.setColour(juce::Colours::white);
-            g.drawEllipse(thumbBounds, 2.0f);
-        }
-        else
-        {
-            // Horizontaler Slider
-            LookAndFeel_V4::drawLinearSlider(g, x, y, width, height, sliderPos, minSliderPos, maxSliderPos, style, slider);
-        }
+        // Thumb-Outline
+        g.setColour(juce::Colours::white);
+        g.drawEllipse(thumbBounds, 2.0f);
     }
+    else
+    {
+        // Horizontaler Slider
+        LookAndFeel_V4::drawLinearSlider(g, x, y, width, height, sliderPos, minSliderPos, maxSliderPos, style, slider);
+    }
+}
 };
 
 inline CustomLookAndFeel customLookAndFeel;
