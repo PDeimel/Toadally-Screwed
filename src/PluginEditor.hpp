@@ -7,7 +7,6 @@
 //==============================================================================
 class AvSynthAudioProcessorEditor final : public juce::AudioProcessorEditor,
                                           public juce::ComboBox::Listener,
-                                          public juce::Slider::Listener,
                                           public juce::Timer{
 public:
     explicit AvSynthAudioProcessorEditor(AvSynthAudioProcessor &);
@@ -20,7 +19,6 @@ public:
     void updateOscImage(int);
     void comboBoxChanged(juce::ComboBox *comboBoxThatHasChanged) override;
     void updateColorTheme(int oscTypeIndex);
-    void sliderValueChanged(juce::Slider* slider) override;
 
 private:
     void timerCallback() override;
@@ -59,12 +57,6 @@ private:
     juce::MidiKeyboardComponent keyboardComponent;
     WaveformComponent waveformComponent;
     ADSRComponent adsrComponent;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attackAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> decayAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> sustainAttachment;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> releaseAttachment;
-
-    juce::Slider attackSlider, decaySlider, sustainSlider, releaseSlider;
 
     juce::ImageComponent oscImage;
 
@@ -111,8 +103,8 @@ public:
         setColour(juce::PopupMenu::highlightedTextColourId, juce::Colours::white);
     }
 
-    void drawComboBox(juce::Graphics& g, int width, int height, bool isButtonDown,
-                      int buttonX, int buttonY, int buttonW, int buttonH, juce::ComboBox& box) override
+    void drawComboBox(juce::Graphics& g, int width, int height, bool /*isButtonDown*/,
+                      int /*buttonX*/, int /*buttonY*/, int /*buttonW*/, int /*buttonH*/, juce::ComboBox& box) override
     {
         auto bounds = juce::Rectangle<int>(0, 0, width, height).toFloat();
 
@@ -130,7 +122,7 @@ public:
 
         // Text zeichnen
         g.setColour(juce::Colours::white);
-        g.setFont(juce::Font(14.0f));
+        g.setFont(juce::FontOptions(14.0f)); // Neue JUCE Font API
         g.drawFittedText(box.getText(), textBounds.toNearestInt(), juce::Justification::centredLeft, 1);
 
         // Pfeil zeichnen
@@ -152,21 +144,21 @@ public:
         if (style == juce::Slider::LinearVertical)
         {
             // Vertikaler Slider (für Reverb)
-            auto trackBounds = juce::Rectangle<float>(x + width * 0.4f, y, width * 0.2f, height);
+            auto trackBounds = juce::Rectangle<float>(static_cast<float>(x + width) * 0.4f, static_cast<float>(y), static_cast<float>(width) * 0.2f, static_cast<float>(height));
 
             // Track (Hintergrund)
             g.setColour(secondaryColor.withAlpha(0.3f));
             g.fillRoundedRectangle(trackBounds, 2.0f);
 
             // Filled Track (bis zur aktuellen Position)
-            auto filledHeight = sliderPos - y;
-            auto filledTrack = juce::Rectangle<float>(trackBounds.getX(), y, trackBounds.getWidth(), filledHeight);
+            auto filledHeight = sliderPos - static_cast<float>(y);
+            auto filledTrack = juce::Rectangle<float>(trackBounds.getX(), static_cast<float>(y), trackBounds.getWidth(), filledHeight);
             g.setColour(primaryColor.withAlpha(0.8f));
             g.fillRoundedRectangle(filledTrack, 2.0f);
 
             // Thumb (Slider-Knopf)
             auto thumbSize = 12.0f;
-            auto thumbBounds = juce::Rectangle<float>(x + width * 0.5f - thumbSize * 0.5f,
+            auto thumbBounds = juce::Rectangle<float>(static_cast<float>(x + width) * 0.5f - thumbSize * 0.5f,
                                                      sliderPos - thumbSize * 0.5f,
                                                      thumbSize, thumbSize);
             g.setColour(primaryColor);

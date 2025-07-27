@@ -173,6 +173,17 @@ void AvSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     const auto totalNumOutputChannels = getTotalNumOutputChannels();
     const int numSamples = buffer.getNumSamples();
 
+    // Einstellungen laden
+    const auto chainSettings = ChainSettings::Get(parameters);
+
+    // ADSR-Parameter ZUERST aktualisieren (vor MIDI-Verarbeitung)
+    if (!juce::approximatelyEqual(chainSettings.attack, previousChainSettings.attack) ||
+        !juce::approximatelyEqual(chainSettings.decay, previousChainSettings.decay) ||
+        !juce::approximatelyEqual(chainSettings.sustain, previousChainSettings.sustain) ||
+        !juce::approximatelyEqual(chainSettings.release, previousChainSettings.release)) {
+        updateADSRParameters(chainSettings.attack, chainSettings.decay, chainSettings.sustain, chainSettings.release);
+    }
+
     // Standard-MIDI-Verarbeitung
     keyboardState.processNextMidiBuffer(midiMessages, 0, numSamples, true);
 
@@ -200,18 +211,11 @@ void AvSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         }
     }
 
-    // Einstellungen laden
-    const auto chainSettings = ChainSettings::Get(parameters);
-
-    if (!juce::approximatelyEqual(chainSettings.attack, previousChainSettings.attack) ||
-        !juce::approximatelyEqual(chainSettings.decay, previousChainSettings.decay) ||
-        !juce::approximatelyEqual(chainSettings.sustain, previousChainSettings.sustain) ||
-        !juce::approximatelyEqual(chainSettings.release, previousChainSettings.release)) {
-        updateADSRParameters(chainSettings.attack, chainSettings.decay, chainSettings.sustain, chainSettings.release);
-        }
-
     // Gain vorbereiten
     bool gainUnchanged = juce::approximatelyEqual(chainSettings.gain, previousChainSettings.gain);
+
+    // Rest der processBlock-Funktion bleibt unverändert...
+    // [Oszillator-Ausgabe, Reverb, BitCrusher, etc.]
 
     // Oszillator-Ausgabe
     if (noteIsActive || adsr.isActive()) {
@@ -230,27 +234,22 @@ void AvSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                 currentEnvelopeValue.store(adsrValue);
 
                 // ADSR-Zustand bestimmen
-                if (adsr.isActive()) {
-                    // Vereinfachte Zustandserkennung basierend auf Wert und Trends
-                    static float lastValue = 0.0f;
-                    float delta = adsrValue - lastValue;
+                static float lastValue = 0.0f;
+                float delta = adsrValue - lastValue;
 
-                    if (adsrValue < 0.01f && !noteIsActive) {
-                        currentADSRState.store(0); // Idle
-                    } else if (delta > 0.001f && adsrValue < 0.99f) {
-                        currentADSRState.store(1); // Attack
-                    } else if (delta < -0.001f && adsrValue > adsrParams.sustain + 0.1f) {
-                        currentADSRState.store(2); // Decay
-                    } else if (std::abs(delta) < 0.001f && noteIsActive) {
-                        currentADSRState.store(3); // Sustain
-                    } else if (delta < -0.001f && !noteIsActive) {
-                        currentADSRState.store(4); // Release
-                    }
-
-                    lastValue = adsrValue;
-                } else {
+                if (adsrValue < 0.01f && !noteIsActive) {
                     currentADSRState.store(0); // Idle
+                } else if (delta > 0.001f && adsrValue < 0.99f) {
+                    currentADSRState.store(1); // Attack
+                } else if (delta < -0.001f && adsrValue > adsrParams.sustain + 0.1f) {
+                    currentADSRState.store(2); // Decay
+                } else if (std::abs(delta) < 0.001f && noteIsActive) {
+                    currentADSRState.store(3); // Sustain
+                } else if (delta < -0.001f && !noteIsActive) {
+                    currentADSRState.store(4); // Release
                 }
+
+                lastValue = adsrValue;
             }
 
             // Wenn ADSR nicht mehr aktiv ist, Note beenden
@@ -271,6 +270,7 @@ void AvSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         currentADSRState.store(0);
     }
 
+    // Reverb-Parameter aktualisieren
     if (!juce::approximatelyEqual(chainSettings.reverbAmount, previousChainSettings.reverbAmount)) {
         updateReverbParameters(chainSettings.reverbAmount);
     }
@@ -282,6 +282,7 @@ void AvSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         reverb.process(reverbContext);
     }
 
+    // BitCrusher
     if (chainSettings.bitCrusherRate < 1.0f) {
         const float crushFactor = chainSettings.bitCrusherRate;
         const float inverse = 1.0f / crushFactor;
