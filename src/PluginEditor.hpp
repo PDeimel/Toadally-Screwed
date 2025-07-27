@@ -7,6 +7,7 @@
 //==============================================================================
 class AvSynthAudioProcessorEditor final : public juce::AudioProcessorEditor,
                                           public juce::ComboBox::Listener,
+                                          public juce::Button::Listener,
                                           public juce::Timer{
 public:
     explicit AvSynthAudioProcessorEditor(AvSynthAudioProcessor &);
@@ -18,6 +19,7 @@ public:
 
     void updateOscImage(int);
     void comboBoxChanged(juce::ComboBox *comboBoxThatHasChanged) override;
+    void buttonClicked(juce::Button* button) override;
     void updateColorTheme(int oscTypeIndex);
 
 private:
@@ -25,6 +27,10 @@ private:
     std::vector<juce::Component *> GetComps();
     juce::Colour getCurrentPrimaryColor() const;
     juce::Colour getCurrentSecondaryColor() const;
+
+    // Preset-Funktionen
+    void loadToadPreset(int presetIndex);
+    void setupPresetButtons();
 
     AvSynthAudioProcessor &processorRef;
 
@@ -53,6 +59,13 @@ private:
     juce::Slider bitCrusherSlider;
     juce::AudioProcessorValueTreeState::SliderAttachment bitCrusherAttachment;
     juce::Label bitCrusherLabel;
+
+    // Toad Preset Buttons
+    juce::TextButton toadPreset1Button;
+    juce::TextButton toadPreset2Button;
+    juce::TextButton toadPreset3Button;
+    juce::TextButton toadPreset4Button;
+    juce::Label presetLabel;
 
     juce::MidiKeyboardComponent keyboardComponent;
     WaveformComponent waveformComponent;
@@ -96,11 +109,35 @@ public:
         // Label-Farben
         setColour(juce::Label::textColourId, juce::Colours::white);
 
+        // Button-Farben
+        setColour(juce::TextButton::buttonColourId, juce::Colours::black.withAlpha(0.7f));
+        setColour(juce::TextButton::buttonOnColourId, primary.withAlpha(0.8f));
+        setColour(juce::TextButton::textColourOffId, juce::Colours::white);
+        setColour(juce::TextButton::textColourOnId, juce::Colours::white);
+
         // PopupMenu-Farben für bessere ComboBox-Dropdown-Darstellung
         setColour(juce::PopupMenu::backgroundColourId, juce::Colours::black.withAlpha(0.9f));
         setColour(juce::PopupMenu::textColourId, juce::Colours::white);
         setColour(juce::PopupMenu::highlightedBackgroundColourId, primary.withAlpha(0.6f));
         setColour(juce::PopupMenu::highlightedTextColourId, juce::Colours::white);
+    }
+
+    void drawButtonBackground(juce::Graphics& g, juce::Button& button, const juce::Colour& /*backgroundColour*/,
+                             bool /*shouldDrawButtonAsHighlighted*/, bool shouldDrawButtonAsDown) override
+    {
+        auto bounds = button.getLocalBounds().toFloat();
+
+        // Hintergrund
+        if (shouldDrawButtonAsDown || button.getToggleState()) {
+            g.setColour(primaryColor.withAlpha(0.8f));
+        } else {
+            g.setColour(juce::Colours::black.withAlpha(0.7f));
+        }
+        g.fillRoundedRectangle(bounds, 5.0f);
+
+        // Umrandung
+        g.setColour(primaryColor);
+        g.drawRoundedRectangle(bounds, 5.0f, 2.0f);
     }
 
     void drawComboBox(juce::Graphics& g, int width, int height, bool /*isButtonDown*/,

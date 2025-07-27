@@ -9,6 +9,7 @@ class AvSynthAudioProcessor final : public juce::AudioProcessor {
 
   public:
     enum class Parameters { Gain, Frequency, OscType, VowelMorph, ReverbAmount, BitCrusherRate, Attack, Decay, Sustain, Release, NumParameters};
+    // KORRIGIERT: Die Namen entsprechen jetzt den tatsächlichen Wellenformen
     enum class OscType { Sine, Square, Saw, Triangle, NumTypes };
 
     struct ChainSettings {

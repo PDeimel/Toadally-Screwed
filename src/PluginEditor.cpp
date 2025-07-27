@@ -25,6 +25,12 @@ AvSynthAudioProcessorEditor::AvSynthAudioProcessorEditor(AvSynthAudioProcessor &
       bitCrusherSlider(juce::Slider::LinearHorizontal, juce::Slider::TextBoxBelow),
       bitCrusherAttachment(p.parameters, magic_enum::enum_name<AvSynthAudioProcessor::Parameters::BitCrusherRate>().data(), bitCrusherSlider),
 
+      // Toad Preset Buttons (KORRIGIERTE NAMEN)
+      toadPreset1Button("Toad Sine"),
+      toadPreset2Button("Toad Square"),
+      toadPreset3Button("Toad Saw"),
+      toadPreset4Button("Toad Tri"),
+
       keyboardComponent(p.keyboardState, juce::MidiKeyboardComponent::horizontalKeyboard),
       waveformComponent(p.circularBuffer, p.bufferWritePos)
 {
@@ -64,6 +70,15 @@ AvSynthAudioProcessorEditor::AvSynthAudioProcessorEditor(AvSynthAudioProcessor &
     vowelMorphLabel.setText("Vowel (A-E-I-O-U)", juce::dontSendNotification);
     vowelMorphLabel.setJustificationType(juce::Justification::centred);
     vowelMorphLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+
+    // Preset-Label konfigurieren
+    presetLabel.setText("=== Toad Presets ===", juce::dontSendNotification);
+    presetLabel.setJustificationType(juce::Justification::centred);
+    presetLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+    presetLabel.setFont(juce::FontOptions(16.0f, juce::Font::bold));
+
+    // Preset-Buttons konfigurieren
+    setupPresetButtons();
 
     adsrComponent.onParameterChanged = [this, &p](float attack, float decay, float sustain, float release) {
         // Parameter direkt in der ValueTreeState setzen
@@ -139,8 +154,6 @@ AvSynthAudioProcessorEditor::AvSynthAudioProcessorEditor(AvSynthAudioProcessor &
 
     oscTypeComboBox.addListener(this); // Add ComboBox listener
 
-
-
     // Initiales Farbschema und Bild setzen
     currentOscType = oscTypeComboBox.getSelectedItemIndex();
     updateColorTheme(currentOscType);
@@ -155,14 +168,140 @@ AvSynthAudioProcessorEditor::AvSynthAudioProcessorEditor(AvSynthAudioProcessor &
     addAndMakeVisible(bitCrusherLabel);
     addAndMakeVisible(gainLabel);
     addAndMakeVisible(vowelMorphLabel);
+    addAndMakeVisible(presetLabel);
+    addAndMakeVisible(toadPreset1Button);
+    addAndMakeVisible(toadPreset2Button);
+    addAndMakeVisible(toadPreset3Button);
+    addAndMakeVisible(toadPreset4Button);
 
-    setSize(650, 600);
+    setSize(650, 650); // Größer für Preset-Bereich
     setResizable(true, true);
 }
 
 AvSynthAudioProcessorEditor::~AvSynthAudioProcessorEditor() {
     stopTimer();
     setLookAndFeel(nullptr);
+}
+
+void AvSynthAudioProcessorEditor::setupPresetButtons() {
+    // Preset-Buttons konfigurieren
+    toadPreset1Button.addListener(this);
+    toadPreset2Button.addListener(this);
+    toadPreset3Button.addListener(this);
+    toadPreset4Button.addListener(this);
+
+    // Button-Styling
+    toadPreset1Button.setColour(juce::TextButton::buttonColourId, juce::Colours::black.withAlpha(0.7f));
+    toadPreset2Button.setColour(juce::TextButton::buttonColourId, juce::Colours::black.withAlpha(0.7f));
+    toadPreset3Button.setColour(juce::TextButton::buttonColourId, juce::Colours::black.withAlpha(0.7f));
+    toadPreset4Button.setColour(juce::TextButton::buttonColourId, juce::Colours::black.withAlpha(0.7f));
+}
+
+void AvSynthAudioProcessorEditor::loadToadPreset(int presetIndex) {
+    // Toad-artige Presets für jeden Oszillator-Typ
+    struct ToadPreset {
+        float gain;
+        int oscType;
+        float vowelMorph;
+        float reverbAmount;
+        float bitCrusherRate;
+        float attack;
+        float decay;
+        float sustain;
+        float release;
+    };
+
+    ToadPreset presets[4] = {
+        // Preset 1: Toad Sine - Sanft und melodisch wie Toads höhere Töne
+        {0.25f, 0, 0.15f, 0.25f, 0.8f, 0.05f, 0.2f, 0.8f, 0.3f},
+
+        // Preset 2: Toad Square - Retro und charakteristisch wie klassische Mario-Sounds
+        {0.25f, 1, 0.45f, 0.2f, 0.4f, 0.08f, 0.25f, 0.75f, 0.4f},
+
+        // Preset 3: Toad Saw - Kratzig und aufgeregt wie Toads "Wahoo!"
+        {0.25f, 2, 0.3f, 0.15f, 0.6f, 0.02f, 0.15f, 0.7f, 0.25f},
+
+        // Preset 4: Toad Triangle - Weich aber markant, wie Toads ruhigere Stimme
+        {0.25f, 3, 0.2f, 0.3f, 0.9f, 0.1f, 0.3f, 0.85f, 0.5f}
+    };
+
+    if (presetIndex >= 0 && presetIndex < 4) {
+        auto& preset = presets[presetIndex];
+
+        // Parameter setzen
+        auto* gainParam = processorRef.parameters.getParameter(
+            magic_enum::enum_name<AvSynthAudioProcessor::Parameters::Gain>().data());
+        if (auto* floatParam = dynamic_cast<juce::AudioParameterFloat*>(gainParam)) {
+            floatParam->setValueNotifyingHost(floatParam->convertTo0to1(preset.gain));
+        }
+
+        auto* oscTypeParam = processorRef.parameters.getParameter(
+            magic_enum::enum_name<AvSynthAudioProcessor::Parameters::OscType>().data());
+        if (auto* choiceParam = dynamic_cast<juce::AudioParameterChoice*>(oscTypeParam)) {
+            choiceParam->setValueNotifyingHost(choiceParam->convertTo0to1(preset.oscType));
+        }
+
+        auto* vowelParam = processorRef.parameters.getParameter(
+            magic_enum::enum_name<AvSynthAudioProcessor::Parameters::VowelMorph>().data());
+        if (auto* floatParam = dynamic_cast<juce::AudioParameterFloat*>(vowelParam)) {
+            floatParam->setValueNotifyingHost(floatParam->convertTo0to1(preset.vowelMorph));
+        }
+
+        auto* reverbParam = processorRef.parameters.getParameter(
+            magic_enum::enum_name<AvSynthAudioProcessor::Parameters::ReverbAmount>().data());
+        if (auto* floatParam = dynamic_cast<juce::AudioParameterFloat*>(reverbParam)) {
+            floatParam->setValueNotifyingHost(floatParam->convertTo0to1(preset.reverbAmount));
+        }
+
+        auto* bitCrusherParam = processorRef.parameters.getParameter(
+            magic_enum::enum_name<AvSynthAudioProcessor::Parameters::BitCrusherRate>().data());
+        if (auto* floatParam = dynamic_cast<juce::AudioParameterFloat*>(bitCrusherParam)) {
+            floatParam->setValueNotifyingHost(floatParam->convertTo0to1(preset.bitCrusherRate));
+        }
+
+        auto* attackParam = processorRef.parameters.getParameter(
+            magic_enum::enum_name<AvSynthAudioProcessor::Parameters::Attack>().data());
+        if (auto* floatParam = dynamic_cast<juce::AudioParameterFloat*>(attackParam)) {
+            floatParam->setValueNotifyingHost(floatParam->convertTo0to1(preset.attack));
+        }
+
+        auto* decayParam = processorRef.parameters.getParameter(
+            magic_enum::enum_name<AvSynthAudioProcessor::Parameters::Decay>().data());
+        if (auto* floatParam = dynamic_cast<juce::AudioParameterFloat*>(decayParam)) {
+            floatParam->setValueNotifyingHost(floatParam->convertTo0to1(preset.decay));
+        }
+
+        auto* sustainParam = processorRef.parameters.getParameter(
+            magic_enum::enum_name<AvSynthAudioProcessor::Parameters::Sustain>().data());
+        if (auto* floatParam = dynamic_cast<juce::AudioParameterFloat*>(sustainParam)) {
+            floatParam->setValueNotifyingHost(floatParam->convertTo0to1(preset.sustain));
+        }
+
+        auto* releaseParam = processorRef.parameters.getParameter(
+            magic_enum::enum_name<AvSynthAudioProcessor::Parameters::Release>().data());
+        if (auto* floatParam = dynamic_cast<juce::AudioParameterFloat*>(releaseParam)) {
+            floatParam->setValueNotifyingHost(floatParam->convertTo0to1(preset.release));
+        }
+
+        // UI updaten
+        updateColorTheme(preset.oscType);
+        updateOscImage(preset.oscType);
+    }
+}
+
+void AvSynthAudioProcessorEditor::buttonClicked(juce::Button* button) {
+    if (button == &toadPreset1Button) {
+        loadToadPreset(0);
+    }
+    else if (button == &toadPreset2Button) {
+        loadToadPreset(1);
+    }
+    else if (button == &toadPreset3Button) {
+        loadToadPreset(2);
+    }
+    else if (button == &toadPreset4Button) {
+        loadToadPreset(3);
+    }
 }
 
 //==============================================================================
@@ -193,6 +332,17 @@ void AvSynthAudioProcessorEditor::resized()
     auto bounds = getLocalBounds().reduced(10);
 
     auto rightSliderArea = bounds.removeFromRight(160);
+
+    // Preset-Bereich oben
+    auto presetArea = bounds.removeFromTop(80);
+    presetLabel.setBounds(presetArea.removeFromTop(25));
+
+    // Preset-Buttons in einer Zeile
+    auto buttonWidth = presetArea.getWidth() / 4;
+    toadPreset1Button.setBounds(presetArea.removeFromLeft(buttonWidth).reduced(2));
+    toadPreset2Button.setBounds(presetArea.removeFromLeft(buttonWidth).reduced(2));
+    toadPreset3Button.setBounds(presetArea.removeFromLeft(buttonWidth).reduced(2));
+    toadPreset4Button.setBounds(presetArea.reduced(2));
 
     // Untere Bereiche für Keyboard und ADSR reservieren (bevor die Spalten erstellt werden)
     auto keyboardArea = bounds.removeFromBottom(80);  // Keyboard unten
@@ -276,6 +426,7 @@ void AvSynthAudioProcessorEditor::updateColorTheme(int oscTypeIndex)
     // Label-Farben aktualisieren
     reverbLabel.setColour(juce::Label::textColourId, juce::Colours::white);
     vowelMorphLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+    presetLabel.setColour(juce::Label::textColourId, juce::Colours::white);
 
     // Komponenten zum Neuzeichnen zwingen
     repaint();
@@ -285,6 +436,12 @@ void AvSynthAudioProcessorEditor::updateColorTheme(int oscTypeIndex)
     {
         comp->repaint();
     }
+
+    // Preset-Buttons neu zeichnen
+    toadPreset1Button.repaint();
+    toadPreset2Button.repaint();
+    toadPreset3Button.repaint();
+    toadPreset4Button.repaint();
 }
 
 void AvSynthAudioProcessorEditor::updateOscImage(int oscTypeIndex)

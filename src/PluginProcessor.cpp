@@ -472,9 +472,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout AvSynthAudioProcessor::creat
     layout.add(makeParameter<juce::AudioParameterFloat, Parameters::Frequency>(
         juce::NormalisableRange(20.0f, 20000.0f, 1.0f, 0.3f), 440.0f));
 
+    // KORRIGIERT: Die Reihenfolge entspricht jetzt den tatsächlichen Wellenformen
     layout.add(makeParameter<juce::AudioParameterChoice, Parameters::OscType>(
-        juce::StringArray{magic_enum::enum_name<OscType::Sine>().data(), magic_enum::enum_name<OscType::Saw>().data(),
-                          magic_enum::enum_name<OscType::Square>().data(), magic_enum::enum_name<OscType::Triangle>().data()},
+        juce::StringArray{magic_enum::enum_name<OscType::Sine>().data(),
+                          magic_enum::enum_name<OscType::Square>().data(),
+                          magic_enum::enum_name<OscType::Saw>().data(),
+                          magic_enum::enum_name<OscType::Triangle>().data()},
         0));
 
     layout.add(makeParameter<juce::AudioParameterFloat, Parameters::VowelMorph>(
