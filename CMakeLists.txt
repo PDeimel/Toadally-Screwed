@@ -73,6 +73,7 @@ target_sources(Toady
         src/PresetManager.cpp
         src/WaveformComponent.cpp
         src/VowelFilter.cpp
+        src/VUMeterComponent.cpp
         src/Utils.cpp)
 
 # `target_compile_definitions` adds some preprocessor definitions to our target. In a Projucer

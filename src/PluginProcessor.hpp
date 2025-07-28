@@ -249,6 +249,16 @@ public:
      */
     bool loadPreset(int presetIndex);
 
+    /**
+     * @brief Get current audio levels for VU meter (thread-safe)
+     * @param leftLevel Reference to store left channel level
+     * @param rightLevel Reference to store right channel level
+     */
+    void getCurrentAudioLevels(float& leftLevel, float& rightLevel) const {
+        leftLevel = currentLeftLevel.load();
+        rightLevel = currentRightLevel.load();
+    }
+
 private:
     /**
      * @brief Create the parameter layout for the value tree state
@@ -278,6 +288,13 @@ private:
      */
     void updateVisualizationBuffer(const juce::AudioBuffer<float>& buffer, int numSamples);
 
+    /**
+     * @brief Update audio levels for VU meter display
+     * @param buffer Audio buffer to analyze
+     * @param numSamples Number of samples to analyze
+     */
+    void updateAudioLevels(const juce::AudioBuffer<float>& buffer, int numSamples);
+
 public:
     //==============================================================================
     // Public member variables (for editor access)
@@ -306,6 +323,12 @@ private:
 
     // Thread-safe UI communication
     std::atomic<float> currentEnvelopeValue{0.0f};  ///< Current envelope value for UI
+    std::atomic<float> currentLeftLevel{0.0f};      ///< Current left channel level for VU meter
+    std::atomic<float> currentRightLevel{0.0f};     ///< Current right channel level for VU meter
+
+    // Level calculation for VU meter
+    juce::dsp::BallisticsFilter<float> leftLevelFilter;  ///< Left channel level filter
+    juce::dsp::BallisticsFilter<float> rightLevelFilter; ///< Right channel level filter
 
     // Utility objects
     juce::Random random;                            ///< Random number generator

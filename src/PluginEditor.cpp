@@ -168,7 +168,8 @@ AvSynthAudioProcessorEditor::AvSynthAudioProcessorEditor(AvSynthAudioProcessor &
 
       // Initialize interactive components
       keyboardComponent(p.keyboardState, juce::MidiKeyboardComponent::horizontalKeyboard),
-      waveformComponent(p.circularBuffer.getBuffer(), p.bufferWritePos) {
+      waveformComponent(p.circularBuffer.getBuffer(), p.bufferWritePos),
+      vuMeterComponent() {
 
     juce::ignoreUnused(processorRef);
 
@@ -214,7 +215,7 @@ AvSynthAudioProcessorEditor::AvSynthAudioProcessorEditor(AvSynthAudioProcessor &
     startTimer(TIMER_INTERVAL_MS);
 
     // Set initial size
-    setSize(650, 650);
+    setSize(650, 720);
     setResizable(true, true);
 }
 
@@ -337,6 +338,7 @@ void AvSynthAudioProcessorEditor::addAndMakeVisibleComponents() {
     addAndMakeVisible(toadPreset2Button);
     addAndMakeVisible(toadPreset3Button);
     addAndMakeVisible(toadPreset4Button);
+    addAndMakeVisible(vuMeterComponent);
 }
 
 //==============================================================================
@@ -380,13 +382,15 @@ void AvSynthAudioProcessorEditor::resized() {
     toadPreset3Button.setBounds(presetArea.removeFromLeft(buttonWidth).reduced(2));
     toadPreset4Button.setBounds(presetArea.reduced(2));
 
-    // Reserve lower areas for keyboard and ADSR
+    // Reserve lower areas for VU meter, keyboard and ADSR
+    auto vuMeterArea = bounds.removeFromBottom(60);
     auto keyboardArea = bounds.removeFromBottom(80);
     auto adsrArea = bounds.removeFromBottom(180);
 
     // Small spacing between areas
     bounds.removeFromBottom(10);
     adsrArea.removeFromBottom(10);
+    keyboardArea.removeFromBottom(10);
 
     // Layout remaining area: left controls, right visualizations
     auto leftColumn = bounds.removeFromLeft(bounds.getWidth() / 2);
@@ -426,6 +430,7 @@ void AvSynthAudioProcessorEditor::resized() {
     // Components that take full width
     adsrComponent.setBounds(adsrArea.reduced(10, 5));
     keyboardComponent.setBounds(keyboardArea);
+    vuMeterComponent.setBounds(vuMeterArea.reduced(5));
 }
 
 //==============================================================================
@@ -460,12 +465,50 @@ void AvSynthAudioProcessorEditor::timerCallback() {
     adsrComponent.updateEnvelopeValue(currentValue, isActive);
     adsrComponent.setADSRState(state);
 
+    updateVUMeter();
+
     // Synchronize ADSR component with current parameter values
     updateUIFromParameters();
 }
 
 //==============================================================================
 // Utility Methods
+
+void AvSynthAudioProcessorEditor::updateVUMeter() {
+    // Get current audio levels from processor
+    auto& buffer = processorRef.circularBuffer.getBuffer();
+    if (buffer.getNumChannels() > 0 && buffer.getNumSamples() > 0) {
+        // Calculate RMS levels for left and right channels
+        float leftLevel = 0.0f;
+        float rightLevel = 0.0f;
+
+        const int numSamples = juce::jmin(buffer.getNumSamples(), 512); // Limit for performance
+
+        // Left channel
+        if (buffer.getNumChannels() >= 1) {
+            const float* leftData = buffer.getReadPointer(0);
+            float sum = 0.0f;
+            for (int i = 0; i < numSamples; ++i) {
+                sum += leftData[i] * leftData[i];
+            }
+            leftLevel = std::sqrt(sum / numSamples);
+        }
+
+        // Right channel (use left if mono)
+        if (buffer.getNumChannels() >= 2) {
+            const float* rightData = buffer.getReadPointer(1);
+            float sum = 0.0f;
+            for (int i = 0; i < numSamples; ++i) {
+                sum += rightData[i] * rightData[i];
+            }
+            rightLevel = std::sqrt(sum / numSamples);
+        } else {
+            rightLevel = leftLevel; // Mono signal
+        }
+
+        vuMeterComponent.updateLevels(leftLevel, rightLevel);
+    }
+}
 
 void AvSynthAudioProcessorEditor::updateColorTheme(int oscTypeIndex) {
     currentOscType = oscTypeIndex;
@@ -494,15 +537,15 @@ void AvSynthAudioProcessorEditor::updateColorTheme(int oscTypeIndex) {
             break;
     }
 
-    // Update look and feel with new colors
     customLookAndFeel.updateColors(primaryColor, secondaryColor);
+
+    vuMeterComponent.setColorScheme(primaryColor, secondaryColor);
 
     // Update label colors
     reverbLabel.setColour(juce::Label::textColourId, juce::Colours::white);
     vowelMorphLabel.setColour(juce::Label::textColourId, juce::Colours::white);
     presetLabel.setColour(juce::Label::textColourId, juce::Colours::white);
 
-    // Force components to repaint
     repaint();
 
     // Repaint all sliders
@@ -510,7 +553,6 @@ void AvSynthAudioProcessorEditor::updateColorTheme(int oscTypeIndex) {
         comp->repaint();
     }
 
-    // Repaint preset buttons
     toadPreset1Button.repaint();
     toadPreset2Button.repaint();
     toadPreset3Button.repaint();
@@ -553,7 +595,6 @@ void AvSynthAudioProcessorEditor::updateOscImage(int oscTypeIndex) {
 }
 
 void AvSynthAudioProcessorEditor::loadToadPreset(int presetIndex) {
-    // Load preset using the processor's preset manager
     if (processorRef.loadPreset(presetIndex)) {
         // Update UI to reflect the loaded preset
         updateColorTheme(processorRef.getPresetManager().getPreset(presetIndex)->oscType);
@@ -562,7 +603,6 @@ void AvSynthAudioProcessorEditor::loadToadPreset(int presetIndex) {
 }
 
 void AvSynthAudioProcessorEditor::updateUIFromParameters() {
-    // Update ADSR component with current parameter values (performance optimized)
     static float lastAttack = -1.0f, lastDecay = -1.0f, lastSustain = -1.0f, lastRelease = -1.0f;
 
     float currentAttack = processorRef.parameters.getRawParameterValue(
@@ -574,7 +614,7 @@ void AvSynthAudioProcessorEditor::updateUIFromParameters() {
     float currentRelease = processorRef.parameters.getRawParameterValue(
         magic_enum::enum_name<AvSynthAudioProcessor::Parameters::Release>().data())->load();
 
-    // Only update if values have changed (performance optimization)
+    // Only update if values have changed
     if (!juce::approximatelyEqual(currentAttack, lastAttack) ||
         !juce::approximatelyEqual(currentDecay, lastDecay) ||
         !juce::approximatelyEqual(currentSustain, lastSustain) ||
@@ -596,6 +636,6 @@ std::vector<juce::Component*> AvSynthAudioProcessorEditor::getComponents() {
     return {
         &gainSlider, &frequencySlider, &oscTypeComboBox, &vowelMorphSlider,
         &reverbSlider, &bitCrusherSlider, &keyboardComponent,
-        &waveformComponent, &adsrComponent
+        &waveformComponent, &adsrComponent, &vuMeterComponent
     };
 }

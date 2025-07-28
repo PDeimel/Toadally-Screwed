@@ -4,6 +4,7 @@
 #include "WaveformComponent.hpp"
 #include "ADSRComponent.hpp"
 #include "PresetManager.hpp"
+#include "VUMeterComponent.hpp"
 
 /**
  * @file PluginEditor.hpp
@@ -176,6 +177,11 @@ private:
     std::vector<juce::Component *> getComponents();
 
     /**
+     * @brief Update VU meter with current audio levels
+     */
+    void updateVUMeter();
+
+    /**
      * @brief Setup preset buttons with proper styling and listeners
      */
     void setupPresetButtons();
@@ -239,6 +245,7 @@ private:
     juce::MidiKeyboardComponent keyboardComponent; ///< MIDI keyboard component
     WaveformComponent waveformComponent;           ///< Waveform visualization component
     ADSRComponent adsrComponent;                   ///< ADSR envelope component
+    VUMeterComponent vuMeterComponent;             ///< VU Meter component (Added)
 
     // Visual elements
     juce::ImageComponent oscImage; ///< Oscillator waveform image display

@@ -136,6 +136,24 @@ void AvSynthAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
         previousChainSettings.release
     );
     envelope.setParameters(adsrParams);
+
+    // Setup level filters for VU meter
+    juce::dsp::ProcessSpec spec;
+    spec.sampleRate = sampleRate;
+    spec.maximumBlockSize = static_cast<juce::uint32>(samplesPerBlock);
+    spec.numChannels = 1;
+
+    leftLevelFilter.prepare(spec);
+    rightLevelFilter.prepare(spec);
+
+    // Configure ballistics for realistic VU meter behavior
+    leftLevelFilter.setLevelCalculationType(juce::dsp::BallisticsFilterLevelCalculationType::RMS);
+    leftLevelFilter.setAttackTime(10.0f);   // Fast attack (10ms)
+    leftLevelFilter.setReleaseTime(300.0f); // Slower release (300ms)
+
+    rightLevelFilter.setLevelCalculationType(juce::dsp::BallisticsFilterLevelCalculationType::RMS);
+    rightLevelFilter.setAttackTime(10.0f);
+    rightLevelFilter.setReleaseTime(300.0f);
 }
 
 void AvSynthAudioProcessor::releaseResources() {
@@ -143,6 +161,8 @@ void AvSynthAudioProcessor::releaseResources() {
     // spare memory, etc.
     effectsChain.reset();
     envelope.reset();
+    leftLevelFilter.reset();
+    rightLevelFilter.reset();
 }
 
 bool AvSynthAudioProcessor::isBusesLayoutSupported(const BusesLayout &layouts) const {
@@ -211,6 +231,9 @@ void AvSynthAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             buffer.applyGainRamp(channel, 0, numSamples, previousChainSettings.gain, chainSettings.gain);
         }
     }
+
+    // Update audio levels for VU meter
+    updateAudioLevels(buffer, numSamples);
 
     // Update visualization buffer
     updateVisualizationBuffer(buffer, numSamples);
@@ -293,6 +316,51 @@ void AvSynthAudioProcessor::updateVisualizationBuffer(const juce::AudioBuffer<fl
             circularBuffer.advanceWritePosition();
         }
         bufferWritePos = circularBuffer.getWritePosition();
+    }
+}
+
+void AvSynthAudioProcessor::updateAudioLevels(const juce::AudioBuffer<float>& buffer, int numSamples) {
+    if (buffer.getNumChannels() == 0 || numSamples == 0) {
+        currentLeftLevel.store(0.0f);
+        currentRightLevel.store(0.0f);
+        return;
+    }
+
+    // Process left channel
+    if (buffer.getNumChannels() >= 1) {
+        const float* leftData = buffer.getReadPointer(0);
+
+        // Create audio block for DSP processing
+        juce::dsp::AudioBlock<const float> leftBlock(&leftData, 1, numSamples);
+
+        // Process through level filter
+        float leftLevel = leftLevelFilter.processSample(0, leftBlock.getSample(0, 0));
+
+        // Calculate RMS level for the block
+        float sum = 0.0f;
+        for (int i = 0; i < numSamples; ++i) {
+            sum += leftData[i] * leftData[i];
+        }
+        leftLevel = std::sqrt(sum / numSamples);
+
+        currentLeftLevel.store(leftLevel);
+    }
+
+    // Process right channel (or duplicate left if mono)
+    if (buffer.getNumChannels() >= 2) {
+        const float* rightData = buffer.getReadPointer(1);
+
+        // Calculate RMS level for the block
+        float sum = 0.0f;
+        for (int i = 0; i < numSamples; ++i) {
+            sum += rightData[i] * rightData[i];
+        }
+        float rightLevel = std::sqrt(sum / numSamples);
+
+        currentRightLevel.store(rightLevel);
+    } else {
+        // Mono signal - duplicate left channel level
+        currentRightLevel.store(currentLeftLevel.load());
     }
 }
 
