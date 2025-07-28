@@ -13,32 +13,28 @@ void PresetManager::createToadPresets() {
     toadPresetIndices.clear();
 
     // Toad-like presets for each oscillator type
-    
-    // Preset 1: Toad Sine - Soft and melodic like Toad's higher tones
+
     auto toadSine = std::make_unique<PresetData>(
         0.25f, 0, 0.15f, 0.25f, 0.8f, 0.05f, 0.2f, 0.8f, 0.3f,
-        "Toad Sine", "Soft and melodic like Toad's higher tones");
+        "Toad", "Soft and melodic like Toad's higher tones");
     toadPresetIndices.push_back(static_cast<int>(presets.size()));
     presets.push_back(std::move(toadSine));
 
-    // Preset 2: Toad Square - Retro and characteristic like classic Mario sounds
     auto toadSquare = std::make_unique<PresetData>(
         0.25f, 1, 0.45f, 0.2f, 0.4f, 0.08f, 0.25f, 0.75f, 0.4f,
-        "Toad Square", "Retro and characteristic like classic Mario sounds");
+        "Jerod", "Retro and characteristic like classic Mario sounds");
     toadPresetIndices.push_back(static_cast<int>(presets.size()));
     presets.push_back(std::move(toadSquare));
 
-    // Preset 3: Toad Saw - Scratchy and excited like Toad's "Wahoo!"
     auto toadSaw = std::make_unique<PresetData>(
         0.25f, 2, 0.3f, 0.15f, 0.6f, 0.02f, 0.15f, 0.7f, 0.25f,
-        "Toad Saw", "Scratchy and excited like Toad's \"Wahoo!\"");
+        "John", "Scratchy and excited like Toad's \"Wahoo!\"");
     toadPresetIndices.push_back(static_cast<int>(presets.size()));
     presets.push_back(std::move(toadSaw));
 
-    // Preset 4: Toad Triangle - Soft but distinctive, like Toad's calmer voice
     auto toadTriangle = std::make_unique<PresetData>(
         0.25f, 3, 0.2f, 0.3f, 0.9f, 0.1f, 0.3f, 0.85f, 0.5f,
-        "Toad Triangle", "Soft but distinctive, like Toad's calmer voice");
+        "Dinkelberg", "Soft but distinctive, like Toad's calmer voice");
     toadPresetIndices.push_back(static_cast<int>(presets.size()));
     presets.push_back(std::move(toadTriangle));
 }

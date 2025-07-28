@@ -161,10 +161,10 @@ AvSynthAudioProcessorEditor::AvSynthAudioProcessorEditor(AvSynthAudioProcessor &
       bitCrusherAttachment(p.parameters, magic_enum::enum_name<AvSynthAudioProcessor::Parameters::BitCrusherRate>().data(), bitCrusherSlider),
 
       // Initialize preset buttons
-      toadPreset1Button("Toad Sine"),
-      toadPreset2Button("Toad Square"),
-      toadPreset3Button("Toad Saw"),
-      toadPreset4Button("Toad Tri"),
+      toadPreset1Button("Toad"),
+      toadPreset2Button("Jerod"),
+      toadPreset3Button("John"),
+      toadPreset4Button("Dinkelberg"),
 
       // Initialize interactive components
       keyboardComponent(p.keyboardState, juce::MidiKeyboardComponent::horizontalKeyboard),
