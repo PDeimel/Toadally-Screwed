@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.30)
 
 # Define the project name
-project(Toady VERSION 0.1.0)
+project(Toady VERSION 1.0.0)
 
 # Set C++23 as the required standard for all targets
 set(CMAKE_CXX_STANDARD 20)
@@ -36,7 +36,7 @@ juce_add_plugin(Toady
         EDITOR_WANTS_KEYBOARD_FOCUS FALSE           # Does the editor need keyboard focus?
         COPY_PLUGIN_AFTER_BUILD TRUE                # Should the plugin be installed to a default location after building?
         PLUGIN_MANUFACTURER_CODE Hsbi               # A four-character manufacturer id with at least one upper-case character
-        PLUGIN_CODE Avsy                            # A unique four-character plugin id with exactly one upper-case character
+        PLUGIN_CODE Toad                            # A unique four-character plugin id with exactly one upper-case character
         # GarageBand 10.3 requires the first letter to be upper-case, and the remaining letters to be lower-case
         FORMATS VST3 Standalone                  # The formats to build. Other valid formats are: AAX Unity VST AU AUv3
         PRODUCT_NAME "Toadally Screwed")    # The name of the final executable, which can differ from the target name
