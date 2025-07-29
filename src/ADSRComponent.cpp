@@ -1,3 +1,8 @@
+/**
+ * @file ADSRComponent.cpp
+ * @brief Implementation of interactive ADSR envelope component
+ */
+
 #include "ADSRComponent.hpp"
 
 ADSRComponent::ADSRComponent()
@@ -5,11 +10,11 @@ ADSRComponent::ADSRComponent()
     setSize(400, 150);
     setInterceptsMouseClicks(true, false);
 
-    // Plot-Buffer initialisieren
+    // Initialize plot buffers
     plotBuffer.fill(0.0f);
-    timeBuffer.fill(0.0f);  // Neu: Zeit-Buffer initialisieren
+    timeBuffer.fill(0.0f);
 
-    // Timer für Echtzeit-Updates starten (60 FPS)
+    // Start timer for real-time updates (60 FPS)
     startTimer(16);
 }
 
@@ -22,15 +27,15 @@ void ADSRComponent::paint(juce::Graphics& g)
 {
     auto bounds = getLocalBounds().toFloat().reduced(10);
 
-    // Hintergrund
+    // Background
     g.setColour(juce::Colours::black.withAlpha(0.3f));
     g.fillRoundedRectangle(bounds, 5.0f);
 
-    // Umrandung
+    // Border
     g.setColour(primaryColor.withAlpha(0.5f));
     g.drawRoundedRectangle(bounds, 5.0f, 2.0f);
 
-    // Grid-Linien
+    // Grid lines
     g.setColour(secondaryColor.withAlpha(0.2f));
     for (int i = 1; i < 4; ++i)
     {
@@ -38,10 +43,10 @@ void ADSRComponent::paint(juce::Graphics& g)
         g.drawLine(bounds.getX(), y, bounds.getRight(), y, 1.0f);
     }
 
-    // ADSR-Kurve zeichnen
+    // Draw ADSR curve
     auto path = createADSRPath();
 
-    // Gefüllte Fläche unter der Kurve
+    // Filled area under the curve
     auto filledPath = path;
     filledPath.lineTo(bounds.getRight(), bounds.getBottom());
     filledPath.lineTo(bounds.getX(), bounds.getBottom());
@@ -50,14 +55,14 @@ void ADSRComponent::paint(juce::Graphics& g)
     g.setColour(primaryColor.withAlpha(0.2f));
     g.fillPath(filledPath);
 
-    // ADSR-Linie
+    // ADSR line
     g.setColour(primaryColor);
     g.strokePath(path, juce::PathStrokeType(3.0f, juce::PathStrokeType::curved));
 
-    // Echtzeit-Plot zeichnen
+    // Draw real-time envelope plot
     drawEnvelopePlot(g);
 
-    // Kontrollpunkte zeichnen
+    // Draw control points
     auto attackPoint = getAttackPoint();
     auto decayPoint = getDecayPoint();
     auto sustainPoint = getSustainPoint();
@@ -77,15 +82,15 @@ void ADSRComponent::paint(juce::Graphics& g)
     drawControlPoint(sustainPoint, currentDragMode == DragMode::Sustain);
     drawControlPoint(releasePoint, currentDragMode == DragMode::Release);
 
-    // Aktueller Envelope-Wert als großer Punkt
+    // Current envelope value as large point
     if (envelopeActive.load())
     {
         auto currentPos = getEnvelopePositionOnCurve(currentEnvelopeValue.load(), currentEnvelopeTime.load());
 
-        // Pulsierender Effekt
+        // Pulsing effect
         float pulseSize = 8.0f + 4.0f * std::sin(animationPhase);
 
-        // Farbbasiert auf ADSR-Phase
+        // Color based on ADSR phase
         juce::Colour phaseColor;
         switch (adsrState.load())
         {
@@ -96,7 +101,7 @@ void ADSRComponent::paint(juce::Graphics& g)
             default: phaseColor = juce::Colours::white; break;
         }
 
-        // Glowing-Effekt
+        // Glowing effect
         g.setColour(phaseColor.withAlpha(0.3f));
         g.fillEllipse(currentPos.x - pulseSize, currentPos.y - pulseSize,
                      pulseSize * 2, pulseSize * 2);
@@ -117,7 +122,7 @@ void ADSRComponent::paint(juce::Graphics& g)
     g.drawText("S", static_cast<int>(sustainPoint.x - 10), static_cast<int>(bounds.getBottom() + 5), 20, 15, juce::Justification::centred);
     g.drawText("R", static_cast<int>(releasePoint.x - 10), static_cast<int>(bounds.getBottom() + 5), 20, 15, juce::Justification::centred);
 
-    // ADSR-Phase anzeigen
+    // Display ADSR phase
     if (envelopeActive.load())
     {
         juce::String phaseText;
@@ -138,7 +143,7 @@ void ADSRComponent::paint(juce::Graphics& g)
 
 void ADSRComponent::resized()
 {
-    // Wird aufgerufen wenn die Komponente ihre Größe ändert
+    // Called when the component changes size
 }
 
 void ADSRComponent::mouseDown(const juce::MouseEvent& event)
@@ -255,10 +260,9 @@ void ADSRComponent::updateColors(juce::Colour primary, juce::Colour secondary)
     repaint();
 }
 
-// KORRIGIERTE VERSION: Jetzt mit Zeit-Parameter
 void ADSRComponent::updateEnvelopeValue(float currentValue, bool isActive, float timeInEnvelope)
 {
-    // Werte validieren bevor sie gespeichert werden
+    // Validate values before storing them
     float validValue = juce::jlimit(0.0f, 1.0f, currentValue);
     float validTime = juce::jmax(0.0f, timeInEnvelope);
 
@@ -266,12 +270,12 @@ void ADSRComponent::updateEnvelopeValue(float currentValue, bool isActive, float
     currentEnvelopeTime.store(validTime);
     envelopeActive.store(isActive);
 
-    // Wert UND Zeit in Plot-Buffer speichern
+    // Store both value AND time in plot buffers
     if (isActive)
     {
         int writeIndex = plotWriteIndex.load();
         plotBuffer[writeIndex] = validValue;
-        timeBuffer[writeIndex] = validTime;  // Zeit auch speichern!
+        timeBuffer[writeIndex] = validTime;  // Also store time!
         plotWriteIndex.store((writeIndex + 1) % plotBufferSize);
     }
 }
@@ -283,12 +287,12 @@ void ADSRComponent::setADSRState(int state)
 
 void ADSRComponent::timerCallback()
 {
-    // Animation-Phase für Pulsieren aktualisieren
+    // Update animation phase for pulsing
     animationPhase += 0.2f;
     if (animationPhase > juce::MathConstants<float>::twoPi)
         animationPhase -= juce::MathConstants<float>::twoPi;
 
-    // Nur neu zeichnen wenn Envelope aktiv ist
+    // Only repaint when envelope is active
     if (envelopeActive.load())
     {
         repaint();
@@ -301,7 +305,7 @@ void ADSRComponent::drawEnvelopePlot(juce::Graphics& g)
 
     auto bounds = getLocalBounds().toFloat().reduced(10);
 
-    // Trail-Effekt: vorherige Werte als verlaufende Linie
+    // Trail effect: previous values as fading line
     juce::Path trailPath;
     bool firstPoint = true;
 
@@ -311,14 +315,14 @@ void ADSRComponent::drawEnvelopePlot(juce::Graphics& g)
     {
         int index = (currentWrite - plotBufferSize + i + plotBufferSize) % plotBufferSize;
         float value = plotBuffer[index];
-        float time = timeBuffer[index];  // Zeit verwenden!
+        float time = timeBuffer[index];  // Use time!
 
-        // Zusätzliche Validierung
+        // Additional validation
         if (value > 0.0f && time >= 0.0f && std::isfinite(value) && std::isfinite(time))
         {
-            auto pos = getEnvelopePositionOnCurve(value, time);  // Mit Zeit!
+            auto pos = getEnvelopePositionOnCurve(value, time);  // With time!
 
-            // Validiere Position
+            // Validate position
             if (std::isfinite(pos.x) && std::isfinite(pos.y))
             {
                 if (firstPoint)
@@ -334,7 +338,7 @@ void ADSRComponent::drawEnvelopePlot(juce::Graphics& g)
         }
     }
 
-    // Trail mit Verlauf zeichnen
+    // Draw trail with fade
     if (!trailPath.isEmpty())
     {
         g.setColour(primaryColor.withAlpha(0.4f));
@@ -342,30 +346,29 @@ void ADSRComponent::drawEnvelopePlot(juce::Graphics& g)
     }
 }
 
-// KORRIGIERTE VERSION: Jetzt mit korrekter X-Position basierend auf Zeit
 juce::Point<float> ADSRComponent::getEnvelopePositionOnCurve(float value, float timeInEnvelope) const
 {
     auto bounds = getLocalBounds().toFloat().reduced(10);
 
-    // Berechne totale ADSR-Zeit
+    // Calculate total ADSR time
     float totalAttackTime = juce::jmax(0.01f, attackValue);
     float totalDecayTime = juce::jmax(0.01f, decayValue);
-    float totalSustainTime = 0.5f; // Sustain hat keine feste Zeit, aber für Plotting nehmen wir 0.5
+    float totalSustainTime = 0.5f; // Sustain has no fixed time, but for plotting we use 0.5
     float totalReleaseTime = juce::jmax(0.01f, releaseValue);
 
     float totalTime = totalAttackTime + totalDecayTime + totalSustainTime + totalReleaseTime;
 
-    // Sicherheitscheck gegen Division durch Null
+    // Safety check against division by zero
     if (totalTime <= 0.0f)
         totalTime = 1.0f;
 
-    // Normalisierte Zeit (0.0 bis 1.0) über die gesamte ADSR-Kurve
+    // Normalized time (0.0 to 1.0) over the entire ADSR curve
     float normalizedTime = juce::jlimit(0.0f, 1.0f, timeInEnvelope / totalTime);
 
-    // X-Position basierend auf der Zeit
+    // X position based on time
     float x = bounds.getX() + (bounds.getWidth() * normalizedTime);
 
-    // Y-Position basierend auf dem Envelope-Wert
+    // Y position based on envelope value
     float y = bounds.getY() + (bounds.getHeight() * (1.0f - juce::jlimit(0.0f, 1.0f, value)));
 
     return {x, y};
@@ -375,35 +378,35 @@ juce::Path ADSRComponent::createADSRPath() const
 {
     auto bounds = getLocalBounds().toFloat().reduced(10);
     juce::Path path;
-    
-    // Startpunkt (0, unten)
+
+    // Start point (0, bottom)
     float startX = bounds.getX();
     float startY = bounds.getBottom();
     path.startNewSubPath(startX, startY);
-    
-    // Attack-Phase
+
+    // Attack phase
     auto attackPoint = getAttackPoint();
     path.lineTo(attackPoint);
-    
-    // Decay-Phase
+
+    // Decay phase
     auto decayPoint = getDecayPoint();
     path.lineTo(decayPoint);
-    
-    // Sustain-Phase (horizontale Linie)
+
+    // Sustain phase (horizontal line)
     auto sustainPoint = getSustainPoint();
     path.lineTo(sustainPoint);
-    
-    // Release-Phase
+
+    // Release phase
     auto releasePoint = getReleasePoint();
     path.lineTo(releasePoint);
-    
+
     return path;
 }
 
 ADSRComponent::DragMode ADSRComponent::getHitTest(juce::Point<float> position) const
 {
     const float hitRadius = 10.0f;
-    
+
     if (getAttackPoint().getDistanceFrom(position) < hitRadius)
         return DragMode::Attack;
     if (getDecayPoint().getDistanceFrom(position) < hitRadius)
@@ -412,17 +415,17 @@ ADSRComponent::DragMode ADSRComponent::getHitTest(juce::Point<float> position) c
         return DragMode::Sustain;
     if (getReleasePoint().getDistanceFrom(position) < hitRadius)
         return DragMode::Release;
-        
+
     return DragMode::None;
 }
 
 juce::Point<float> ADSRComponent::getAttackPoint() const
 {
     auto bounds = getLocalBounds().toFloat().reduced(10);
-    
+
     float x = bounds.getX() + (bounds.getWidth() * 0.25f * attackValue);
-    float y = bounds.getY(); // Peak (oben)
-    
+    float y = bounds.getY(); // Peak (top)
+
     return {x, y};
 }
 
@@ -430,10 +433,10 @@ juce::Point<float> ADSRComponent::getDecayPoint() const
 {
     auto bounds = getLocalBounds().toFloat().reduced(10);
     auto attackPoint = getAttackPoint();
-    
+
     float x = attackPoint.x + (bounds.getWidth() * 0.25f * decayValue);
     float y = bounds.getY() + (bounds.getHeight() * (1.0f - sustainValue));
-    
+
     return {x, y};
 }
 
@@ -441,10 +444,10 @@ juce::Point<float> ADSRComponent::getSustainPoint() const
 {
     auto bounds = getLocalBounds().toFloat().reduced(10);
     auto decayPoint = getDecayPoint();
-    
-    float x = bounds.getX() + bounds.getWidth() * 0.7f; // Feste Position
-    float y = decayPoint.y; // Gleiche Höhe wie Decay-Ende
-    
+
+    float x = bounds.getX() + bounds.getWidth() * 0.7f; // Fixed position
+    float y = decayPoint.y; // Same height as decay end
+
     return {x, y};
 }
 
@@ -452,21 +455,21 @@ juce::Point<float> ADSRComponent::getReleasePoint() const
 {
     auto bounds = getLocalBounds().toFloat().reduced(10);
     auto sustainPoint = getSustainPoint();
-    
+
     float x = sustainPoint.x + (bounds.getWidth() * 0.3f * releaseValue);
-    float y = bounds.getBottom(); // Zurück auf null
-    
+    float y = bounds.getBottom(); // Back to zero
+
     return {x, y};
 }
 
 float ADSRComponent::mapToADSRValue(float screenValue, bool isTime)
 {
-    // Einfache lineare Abbildung für diese Implementierung
+    // Simple linear mapping for this implementation
     return juce::jlimit(0.0f, 1.0f, screenValue);
 }
 
 float ADSRComponent::mapFromADSRValue(float adsrValue, bool isTime)
 {
-    // Einfache lineare Abbildung für diese Implementierung
+    // Simple linear mapping for this implementation
     return juce::jlimit(0.0f, 1.0f, adsrValue);
 }
