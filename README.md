@@ -71,7 +71,8 @@ This project uses CMake as the primary build system with automatic dependency ma
 
 2. **Create build directory:**
    ```bash
-   mkdir build && cd build
+   mkdir build
+   cd build
    ```
 
 3. **Configure and build:**
@@ -93,6 +94,8 @@ This project uses CMake as the primary build system with automatic dependency ma
   cmake .. -DCMAKE_BUILD_TYPE=Release
   cmake --build .
   ```
+
+The VST3 should then be found in build/Toady_artefacts/Release/VST3
 
 ### Plugin Installation
 
@@ -237,7 +240,3 @@ Refer to the `LICENSE` file for more details on licensing terms.
 - **JUCE Team** for the excellent audio framework
 - **Neargye** for the magic_enum library
 - **Nintendo** for creating the iconic Toad character (this is a fan project)
-
----
-
-*"Toadally Screwed" - Because sometimes you just need that perfect mushroom retainer sound! 🍄*
