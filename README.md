@@ -81,6 +81,8 @@ This project uses CMake as the primary build system with automatic dependency ma
    cmake --build . --config Release
    ```
 
+The VST3 should then be found in build/Toady_artefacts/Release/VST3
+
 ### Build Configurations
 
 - **Debug Build:**
@@ -94,8 +96,6 @@ This project uses CMake as the primary build system with automatic dependency ma
   cmake .. -DCMAKE_BUILD_TYPE=Release
   cmake --build .
   ```
-
-The VST3 should then be found in build/Toady_artefacts/Release/VST3
 
 ### Plugin Installation
 
