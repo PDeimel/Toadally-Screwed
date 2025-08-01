@@ -60,38 +60,18 @@ void CustomLookAndFeel::drawButtonBackground(juce::Graphics& g, juce::Button& bu
     g.drawRoundedRectangle(bounds, 5.0f, 2.0f);
 }
 
-void CustomLookAndFeel::drawComboBox(juce::Graphics& g, int width, int height, bool /*isButtonDown*/,
-                                   int /*buttonX*/, int /*buttonY*/, int /*buttonW*/, int /*buttonH*/,
+void CustomLookAndFeel::drawComboBox(juce::Graphics& g, int width, int height, bool isButtonDown,
+                                   int buttonX, int buttonY, int buttonW, int buttonH,
                                    juce::ComboBox& box) {
     auto bounds = juce::Rectangle<int>(0, 0, width, height).toFloat();
 
-    // Background with theme color
     g.setColour(juce::Colours::black.withAlpha(0.7f));
     g.fillRoundedRectangle(bounds, 5.0f);
 
-    // Border with primary color
     g.setColour(primaryColor);
     g.drawRoundedRectangle(bounds, 5.0f, 2.0f);
 
-    // Text area (leave space for arrow)
-    auto textBounds = bounds.reduced(8, 4);
-    textBounds.setWidth(textBounds.getWidth() - 20); // Space for arrow
-
-    // Draw text
-    g.setColour(juce::Colours::white);
-    g.setFont(juce::FontOptions(14.0f));
-    g.drawFittedText(box.getText(), textBounds.toNearestInt(), juce::Justification::centredLeft, 1);
-
-    // Draw arrow
-    auto arrowBounds = juce::Rectangle<float>(bounds.getRight() - 25, bounds.getCentreY() - 4, 15, 8);
-    g.setColour(primaryColor);
-
-    // Simple downward arrow
-    juce::Path arrow;
-    arrow.addTriangle(arrowBounds.getX(), arrowBounds.getY(),
-                     arrowBounds.getX() + arrowBounds.getWidth() * 0.5f, arrowBounds.getBottom(),
-                     arrowBounds.getRight(), arrowBounds.getY());
-    g.fillPath(arrow);
+    LookAndFeel_V4::drawComboBox(g, width, height, isButtonDown, buttonX, buttonY, buttonW, buttonH, box);
 }
 
 void CustomLookAndFeel::drawLinearSlider(juce::Graphics& g, int x, int y, int width, int height,
@@ -307,6 +287,9 @@ void AvSynthAudioProcessorEditor::setupADSRComponent() {
 
 void AvSynthAudioProcessorEditor::setupOscillatorComboBox() {
     // Setup ComboBox with oscillator choices
+    oscTypeComboBox.setJustificationType(juce::Justification::centredLeft);
+    oscTypeComboBox.setColour(juce::ComboBox::textColourId, juce::Colours::white);
+    oscTypeComboBox.setColour(juce::ComboBox::backgroundColourId, juce::Colours::transparentBlack);
     auto* oscTypeParam = dynamic_cast<juce::AudioParameterChoice*>(
         processorRef.parameters.getParameter(
             magic_enum::enum_name<AvSynthAudioProcessor::Parameters::OscType>().data()));
@@ -540,6 +523,9 @@ void AvSynthAudioProcessorEditor::updateColorTheme(int oscTypeIndex) {
     customLookAndFeel.updateColors(primaryColor, secondaryColor);
 
     vuMeterComponent.setColorScheme(primaryColor, secondaryColor);
+
+    // Update waveform component colors
+    waveformComponent.setColorScheme(primaryColor, secondaryColor.darker(0.3f));
 
     // Update label colors
     reverbLabel.setColour(juce::Label::textColourId, juce::Colours::white);

@@ -16,46 +16,82 @@ WaveformComponent::WaveformComponent(juce::AudioSampleBuffer &bufferRef, int &wr
 }
 
 /**
+ * @brief Set the color scheme for the waveform and border
+ * @param waveColor Color for the waveform line
+ * @param borderColor Color for the border (should be darker than wave color)
+ */
+void WaveformComponent::setColorScheme(juce::Colour waveColor, juce::Colour borderColor) {
+    waveformColor = waveColor;
+    this->borderColor = borderColor;
+    repaint(); // Trigger a repaint to apply the new colors
+}
+
+/**
  * @brief Handles the painting of the component
  * @param g The graphics context used for drawing
  */
 void WaveformComponent::paint(juce::Graphics &g) {
-    g.fillAll(juce::Colours::black);  // Set background to black
-    g.setColour(juce::Colours::lime); // Set waveform color to lime
-    drawWaveform(g);                  // Draw the actual waveform
+    auto bounds = getLocalBounds().toFloat();
+
+    // Fill background with black
+    g.fillAll(juce::Colours::black);
+
+    // Draw border with the specified border color
+    g.setColour(borderColor);
+    g.drawRoundedRectangle(bounds, 3.0f, 2.0f);
+
+    // Reduce bounds for the actual waveform to leave space for border
+    auto waveformBounds = bounds.reduced(3.0f);
+    g.reduceClipRegion(waveformBounds.toNearestInt());
+
+    // Set waveform color and draw
+    g.setColour(waveformColor);
+    drawWaveform(g);
 }
 
 /**
  * @brief Timer callback that triggers repainting
  * Called approximately 60 times per second to update the display
  */
-void WaveformComponent::timerCallback() { repaint(); }
+void WaveformComponent::timerCallback() {
+    repaint();
+}
 
 /**
  * @brief Draws the waveform visualization
  * @param g The graphics context used for drawing
  */
 void WaveformComponent::drawWaveform(juce::Graphics &g) const {
-    auto width = getWidth();
-    auto height = getHeight();
+    auto bounds = getLocalBounds().toFloat().reduced(3.0f); // Account for border
+    auto width = bounds.getWidth();
+    auto height = bounds.getHeight();
+    auto centerY = bounds.getCentreY();
 
     juce::Path waveformPath;
-    waveformPath.startNewSubPath(0.f, height / 2.f); // Start path at vertical center
+    waveformPath.startNewSubPath(bounds.getX(), centerY); // Start path at vertical center
 
     const int numSamples = buffer.getNumSamples();
+    if (numSamples == 0) {
+        // Draw a flat line if no samples
+        waveformPath.lineTo(bounds.getRight(), centerY);
+        g.strokePath(waveformPath, juce::PathStrokeType(1.5f));
+        return;
+    }
+
     const float step = static_cast<float>(numSamples) / width; // Calculate samples per pixel
     const int start = (writePos + 1) % numSamples;             // Get starting point after current write position
 
     // Draw the waveform point by point
-    for (int i = 0; i < width; ++i) {
+    for (int i = 0; i < static_cast<int>(width); ++i) {
         // Calculate the actual sample index with wraparound
         const float index = std::fmod(start + i * step, static_cast<float>(numSamples));
         // Get the audio sample value at this index
         const float sample = buffer.getSample(0, static_cast<int>(index));
-        // Map the sample value (-1 to 1) to screen coordinates (height to 0)
-        const float y = juce::jmap(sample, -1.0f, 1.0f, static_cast<float>(height), 0.0f);
-        waveformPath.lineTo(static_cast<float>(i), y);
+        // Map the sample value (-1 to 1) to screen coordinates within the reduced bounds
+        const float y = juce::jmap(sample, -1.0f, 1.0f, bounds.getBottom(), bounds.getY());
+        waveformPath.lineTo(bounds.getX() + static_cast<float>(i), y);
     }
 
-    g.strokePath(waveformPath, juce::PathStrokeType(1.0f)); // Draw the final path
+    // Draw the waveform with slightly thicker line for better visibility
+    g.strokePath(waveformPath, juce::PathStrokeType(1.5f));
 }
