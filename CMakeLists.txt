@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.30)
 # Define the project name
 project(Toady VERSION 1.0.3)
 
-# Set C++23 as the required standard for all targets
+# Set C++20 as the required standard for all targets
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
