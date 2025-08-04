@@ -210,7 +210,7 @@ Toady/
 - **Plugin Name:** Toadally Screwed
 - **Manufacturer Code:** Hsbi
 - **Plugin Code:** Toad
-- **Version:** 1.0.2
+- **Version:** 1.0.3
 - **Type:** Synthesizer
 - **MIDI:** Requires MIDI input, no MIDI output
 - **Formats:** VST3, Standalone

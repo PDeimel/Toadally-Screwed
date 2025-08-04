@@ -366,7 +366,7 @@ void AvSynthAudioProcessorEditor::resized() {
     toadPreset4Button.setBounds(presetArea.reduced(2));
 
     // Reserve lower areas for VU meter, keyboard and ADSR
-    auto vuMeterArea = bounds.removeFromBottom(60);
+    auto vuMeterArea = bounds.removeFromBottom(150);
     auto keyboardArea = bounds.removeFromBottom(80);
     auto adsrArea = bounds.removeFromBottom(180);
 
