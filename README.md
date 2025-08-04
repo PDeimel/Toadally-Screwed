@@ -81,21 +81,12 @@ This project uses CMake as the primary build system with automatic dependency ma
    cmake --build . --config Release
    ```
 
-The VST3 should then be found in build/Toady_artefacts/Release/VST3
+Depending on if you are using VSCode or CLion to open the project the folder structure of the finished files may vary:
 
-### Build Configurations
+In VSCode, the files should be found in the build/Toady_artefacts file.
 
-- **Debug Build:**
-  ```bash
-  cmake .. -DCMAKE_BUILD_TYPE=Debug
-  cmake --build .
-  ```
+In CLion, the vst and .exe should be found in the automatically created folder cmake-build-debug/Toady_artefacts/Debug
 
-- **Release Build:**
-  ```bash
-  cmake .. -DCMAKE_BUILD_TYPE=Release
-  cmake --build .
-  ```
 
 ### Plugin Installation
 
